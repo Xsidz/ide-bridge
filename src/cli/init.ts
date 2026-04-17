@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 
 export async function cmdInit(opts: { gitignore?: boolean }) {
-  const cwd = process.env.PWD ?? process.cwd();
+  const cwd = process.cwd();
   const yaml = path.join(cwd, ".ide-bridge.yaml");
   const projectId = path.basename(cwd);
   const body = `project_id: ${projectId}\n# checked in by default — share across machines/teammates.\n# Pass --gitignore on init or add to .gitignore to keep private.\n`;
