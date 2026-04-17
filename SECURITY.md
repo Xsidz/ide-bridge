@@ -11,7 +11,7 @@
 
 Please **do not** open a public GitHub issue for security reports.
 
-Email **hello@neuralarc.ai** with the subject line `[ide-bridge security] <short summary>`. Include:
+Email **siddhesh.kabraa@gmail.com** with the subject line `[ide-bridge security] <short summary>`. Include:
 - A description of the vulnerability
 - Steps to reproduce
 - Potential impact

@@ -21,7 +21,7 @@ Examples of unacceptable behavior:
 
 ## Enforcement
 
-Report issues to **hello@neuralarc.ai**. All complaints will be reviewed and investigated promptly and fairly. Maintainers have the right and responsibility to remove comments, commits, code, issues, and other contributions that violate this Code of Conduct.
+Report issues to **siddhesh.kabraa@gmail.com**. All complaints will be reviewed and investigated promptly and fairly. Maintainers have the right and responsibility to remove comments, commits, code, issues, and other contributions that violate this Code of Conduct.
 
 ## Attribution
 
