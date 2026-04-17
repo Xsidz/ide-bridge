@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { PcbSchema, type Pcb } from "../../src/pcb/schema.js";
+import { PcbSchema, FidelitySchema, type Pcb } from "../../src/pcb/schema.js";
 
 describe("PcbSchema", () => {
   it("accepts a minimal valid PCB", () => {
@@ -20,7 +20,10 @@ describe("PcbSchema", () => {
     expect(PcbSchema.parse(pcb)).toEqual(pcb);
   });
 
-  it("rejects invalid fidelity", () => {
-    expect(() => PcbSchema.parse({ conversation: { fidelity: "L9" } })).toThrow();
+  it("FidelitySchema accepts L0-L3 and rejects other values", () => {
+    expect(FidelitySchema.parse("L0")).toBe("L0");
+    expect(FidelitySchema.parse("L3")).toBe("L3");
+    expect(() => FidelitySchema.parse("L9")).toThrow();
+    expect(() => FidelitySchema.parse("l2")).toThrow();
   });
 });
