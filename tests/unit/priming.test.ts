@@ -27,4 +27,13 @@ describe("writePriming", () => {
   it("rejects unknown ide", async () => {
     await expect(writePriming("foo", p)).rejects.toThrow();
   });
+
+  it("calling writePriming twice does not duplicate the priming block", async () => {
+    await writePriming("claude-code", p);
+    await writePriming("claude-code", p);
+    const { readFileSync: rf } = await import("node:fs");
+    const content = rf(path.join(p, "CLAUDE.md"), "utf8");
+    const occurrences = (content.match(/<!-- ide-bridge:priming -->/g) ?? []).length;
+    expect(occurrences).toBe(1);
+  });
 });

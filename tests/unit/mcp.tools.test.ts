@@ -54,4 +54,65 @@ describe("tool handlers", () => {
     expect(r.project_id).toMatch(/^path-/);
     expect(r.resolved_from).toBe("path");
   });
+
+  it("force=true bypasses an active debounce window", async () => {
+    const h = buildToolHandlers({
+      store: new FileBundleStore(),
+      debouncer: new Debouncer(60_000),
+      adapters: new AdapterRegistry(),
+    });
+    const r1 = await h.save_checkpoint({ project_id: "q", source_ide: "claude-code", bundle_patch: {} });
+    expect(r1.saved).toBe(true);
+    const r2 = await h.save_checkpoint({ project_id: "q", source_ide: "claude-code", bundle_patch: {}, force: true });
+    expect(r2.saved).toBe(true);
+    expect((r2 as { bundle_id: string }).bundle_id).toBeDefined();
+  });
+
+  it("last_source_ide reflects the most recent writing IDE", async () => {
+    const h = buildToolHandlers({
+      store: new FileBundleStore(),
+      debouncer: new Debouncer(0),
+      adapters: new AdapterRegistry(),
+    });
+    await h.save_checkpoint({ project_id: "r", source_ide: "claude-code", bundle_patch: {} });
+    await h.save_checkpoint({ project_id: "r", source_ide: "cursor", bundle_patch: {} });
+    const { bundle } = await h.load_checkpoint({ project_id: "r" });
+    expect(bundle?.last_source_ide).toBe("cursor");
+  });
+
+  it("load_checkpoint returns null bundle for unknown project", async () => {
+    const h = buildToolHandlers({
+      store: new FileBundleStore(),
+      debouncer: new Debouncer(0),
+      adapters: new AdapterRegistry(),
+    });
+    const result = await h.load_checkpoint({ project_id: "does-not-exist" });
+    expect(result.bundle).toBeNull();
+  });
+
+  it("list_projects returns empty array on a fresh store", async () => {
+    const h = buildToolHandlers({
+      store: new FileBundleStore(),
+      debouncer: new Debouncer(0),
+      adapters: new AdapterRegistry(),
+    });
+    const { projects } = await h.list_projects({});
+    expect(projects).toEqual([]);
+  });
+
+  it("append_decision assigns incrementing ids d_1 d_2 d_3", async () => {
+    const h = buildToolHandlers({
+      store: new FileBundleStore(),
+      debouncer: new Debouncer(0),
+      adapters: new AdapterRegistry(),
+    });
+    const a = await h.append_decision({ project_id: "s", text: "first", rationale: "r1" });
+    const b = await h.append_decision({ project_id: "s", text: "second" });
+    const c = await h.append_decision({ project_id: "s", text: "third" });
+    expect(a.decision_id).toBe("d_1");
+    expect(b.decision_id).toBe("d_2");
+    expect(c.decision_id).toBe("d_3");
+    const { bundle } = await h.load_checkpoint({ project_id: "s" });
+    expect(bundle?.decisions).toHaveLength(3);
+  });
 });
