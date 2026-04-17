@@ -11,7 +11,8 @@ beforeEach(() => {
   home = mkdtempSync(path.join(os.tmpdir(), "ib-cc-"));
   process.env.HOME = home;
   projectRoot = mkdtempSync(path.join(os.tmpdir(), "ib-cc-proj-"));
-  const sessionDir = path.join(home, ".claude", "projects", Buffer.from(projectRoot).toString("hex"));
+  const encoded = projectRoot.replace(/[/._]/g, "-");
+  const sessionDir = path.join(home, ".claude", "projects", encoded);
   mkdirSync(sessionDir, { recursive: true });
   copyFileSync("tests/fixtures/claude_code_session.jsonl", path.join(sessionDir, "abc.jsonl"));
 });
@@ -34,7 +35,8 @@ describe("claudeCodeAdapter", () => {
     };
     const report = await claudeCodeAdapter.import_into(projectRoot, pcb);
     expect(report.fidelity_applied).toBe("L3");
-    const sessionDir = path.join(home, ".claude", "projects", Buffer.from(projectRoot).toString("hex"));
+    const encoded = projectRoot.replace(/[/._]/g, "-");
+    const sessionDir = path.join(home, ".claude", "projects", encoded);
     const files = readdirSync(sessionDir).filter(f => f.endsWith(".jsonl"));
     const forged = files.find(f => f.startsWith("forged-"));
     expect(forged).toBeDefined();
