@@ -71,4 +71,57 @@ describe("writePriming", () => {
     expect(markerIdx).toBeGreaterThanOrEqual(0);
     expect(priorIdx).toBeGreaterThan(markerIdx); // marker comes first
   });
+
+  it("installs .claude/settings.json hooks when priming claude-code", async () => {
+    await writePriming("claude-code", p);
+    const { readFileSync } = await import("node:fs");
+    const raw = readFileSync(path.join(p, ".claude", "settings.json"), "utf8");
+    const settings = JSON.parse(raw);
+    const sessionStart = settings.hooks?.SessionStart ?? [];
+    const preCompact = settings.hooks?.PreCompact ?? [];
+    expect(sessionStart.some((m: { hooks: { command: string }[] }) =>
+      m.hooks.some(h => h.command === "ide-bridge hook load"))).toBe(true);
+    expect(preCompact.some((m: { hooks: { command: string }[] }) =>
+      m.hooks.some(h => h.command === "ide-bridge hook save"))).toBe(true);
+  });
+
+  it("does NOT install hooks when installHooks: false", async () => {
+    await writePriming("claude-code", p, { installHooks: false });
+    const { existsSync } = await import("node:fs");
+    expect(existsSync(path.join(p, ".claude", "settings.json"))).toBe(false);
+  });
+
+  it("merges into existing .claude/settings.json without clobbering user hooks", async () => {
+    const { mkdirSync, writeFileSync, readFileSync } = await import("node:fs");
+    mkdirSync(path.join(p, ".claude"), { recursive: true });
+    const existing = {
+      permissions: { allow: ["Bash(ls:*)"] },
+      hooks: {
+        SessionStart: [{ matcher: "startup", hooks: [{ type: "command", command: "echo hi" }] }],
+      },
+    };
+    writeFileSync(path.join(p, ".claude", "settings.json"), JSON.stringify(existing));
+    await writePriming("claude-code", p);
+    const settings = JSON.parse(readFileSync(path.join(p, ".claude", "settings.json"), "utf8"));
+    // user's permissions preserved
+    expect(settings.permissions.allow).toEqual(["Bash(ls:*)"]);
+    // user's echo hi preserved
+    const allSessionStartCmds = settings.hooks.SessionStart.flatMap((m: { hooks: { command: string }[] }) =>
+      m.hooks.map(h => h.command));
+    expect(allSessionStartCmds).toContain("echo hi");
+    expect(allSessionStartCmds).toContain("ide-bridge hook load");
+  });
+
+  it("is idempotent: priming twice does not duplicate the ide-bridge hook entries", async () => {
+    await writePriming("claude-code", p);
+    await writePriming("claude-code", p);
+    const { readFileSync } = await import("node:fs");
+    const settings = JSON.parse(readFileSync(path.join(p, ".claude", "settings.json"), "utf8"));
+    const loadCount = settings.hooks.SessionStart.flatMap((m: { hooks: { command: string }[] }) =>
+      m.hooks.filter(h => h.command === "ide-bridge hook load")).length;
+    const saveCount = settings.hooks.PreCompact.flatMap((m: { hooks: { command: string }[] }) =>
+      m.hooks.filter(h => h.command === "ide-bridge hook save")).length;
+    expect(loadCount).toBe(1);
+    expect(saveCount).toBe(1);
+  });
 });

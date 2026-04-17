@@ -448,30 +448,22 @@ The field should now reflect Claude Code as the most recent saver — confirming
 
 ---
 
-## Hooks (Claude Code auto-save)
+## Claude Code auto-hooks (now automatic on priming)
 
-Claude Code supports lifecycle hooks. To auto-save on every turn boundary, add to `~/.claude/settings.json`:
+Running `ide-bridge priming claude-code` also writes `.claude/settings.json` with two hooks:
 
-```json
-{
-  "hooks": {
-    "Stop": [
-      {
-        "matcher": "",
-        "hooks": [{ "type": "command", "command": "ide-bridge hook save" }]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": ".*",
-        "hooks": [{ "type": "command", "command": "ide-bridge hook save" }]
-      }
-    ]
-  }
-}
+- **SessionStart** (matcher `startup|resume`) → runs `ide-bridge hook load` which injects the current project's plan, decisions, and todos as context. Every new or resumed Claude Code session starts with the prior state already loaded.
+- **PreCompact** → runs `ide-bridge hook save` just before Claude Code compacts the conversation, so the mid-conversation state is persisted before it's lost to compaction summary.
+
+If the daemon isn't running, both hooks exit silently — they never block a session.
+
+To opt out (priming-only, no auto-hooks):
+
+```
+ide-bridge priming claude-code --no-hooks
 ```
 
-These hooks run `ide-bridge hook save`, which resolves the project ID from the current working directory and POSTs a `save_checkpoint` call to the local daemon. The daemon's 30-second per-project debounce prevents repeated saves from thrashing the disk — only the first call within any 30-second window actually writes.
+The hook commands are keyed so repeat priming never duplicates them; existing unrelated hooks in your `.claude/settings.json` are preserved.
 
 ---
 

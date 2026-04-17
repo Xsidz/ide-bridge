@@ -4,7 +4,7 @@ import { cmdStart } from "./cli/start.js";
 import { cmdStop } from "./cli/stop.js";
 import { cmdStatus } from "./cli/status.js";
 import { cmdInit } from "./cli/init.js";
-import { cmdHookSave } from "./cli/hook.js";
+import { cmdHookSave, cmdHookLoad } from "./cli/hook.js";
 import { cmdInstallService } from "./cli/install_service.js";
 import { cmdPriming } from "./cli/priming.js";
 
@@ -21,8 +21,12 @@ program.command("init").option("--gitignore", "also add to .gitignore").action(c
 
 const hook = program.command("hook").description("IDE lifecycle hooks");
 hook.command("save").action(cmdHookSave);
+hook.command("load").action(cmdHookLoad);
 
 program.command("install-service").description("install launchd/systemd unit").action(cmdInstallService);
-program.command("priming <ide>").description("write per-IDE priming file").action(cmdPriming);
+program.command("priming <ide>")
+  .description("write per-IDE priming file (claude-code also installs .claude/settings.json hooks unless --no-hooks)")
+  .option("--no-hooks", "skip installing Claude Code SessionStart/PreCompact hooks")
+  .action(cmdPriming);
 
 program.parseAsync(process.argv);

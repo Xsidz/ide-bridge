@@ -1,5 +1,7 @@
 # ide-bridge: cross-IDE context protocol (mandatory, read first)
 
+> **Auto-hooks installed.** This project has `.claude/settings.json` hooks that auto-invoke `bridge.*` on every SessionStart (resume/startup) and PreCompact. You should still follow the protocol below for in-session decisions and todos, but session boot and compaction persistence are handled automatically.
+
 You are connected to an MCP server named `bridge`. **Every session must start with a single call to `bridge.load_checkpoint`.** This takes priority over all other startup behaviour in this repo.
 
 ## Protocol
