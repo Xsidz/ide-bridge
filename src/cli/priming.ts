@@ -1,1 +1,7 @@
-export async function cmdPriming(_ide: string) { throw new Error("priming implemented in Task 20"); }
+import { writePriming } from "../priming/generator.js";
+
+export async function cmdPriming(ide: string) {
+  const root = process.cwd();
+  const file = await writePriming(ide, root);
+  console.log(`wrote ${file}`);
+}
