@@ -1,0 +1,40 @@
+{
+  "name": "ide-bridge",
+  "version": "0.1.0-alpha.0",
+  "description": "Cross-IDE context bridge over MCP",
+  "type": "module",
+  "license": "MIT",
+  "bin": {
+    "ide-bridge": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint src tests",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [],
+  "author": "",
+  "packageManager": "pnpm@10.33.0",
+  "dependencies": {
+    "better-sqlite3": "^12.9.0",
+    "commander": "^14.0.3",
+    "fastify": "^5.8.5",
+    "pino": "^10.3.1",
+    "simple-git": "^3.36.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "@typescript-eslint/eslint-plugin": "^8.58.2",
+    "@typescript-eslint/parser": "^8.58.2",
+    "@vitest/coverage-v8": "^4.1.4",
+    "eslint": "^10.2.0",
+    "prettier": "^3.8.3",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.4"
+  }
+}
