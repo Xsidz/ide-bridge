@@ -6,6 +6,16 @@ import { mergePatch, type PcbPatch } from "../pcb/merge.js";
 import { resolveProjectId } from "../identity/resolver.js";
 import { extractSummary } from "../pcb/summary.js";
 
+const PROJECT_ID_PATTERN = /^[A-Za-z0-9._\-]{1,128}$/;
+
+function assertValidProjectId(projectId: string): void {
+  if (!PROJECT_ID_PATTERN.test(projectId)) {
+    throw new Error(
+      `invalid project_id: must match ${PROJECT_ID_PATTERN.toString()} (got ${JSON.stringify(projectId).slice(0, 80)})`
+    );
+  }
+}
+
 // ts-prune-ignore-next
 export interface Deps { store: BundleStore; debouncer: Debouncer; adapters: AdapterRegistry; }
 
@@ -17,6 +27,7 @@ export function buildToolHandlers(deps: Deps) {
   const { store, debouncer } = deps;
 
   async function save_checkpoint(args: { project_id: string; source_ide: string; bundle_patch: PcbPatch; force?: boolean }) {
+    assertValidProjectId(args.project_id);
     if (!args.force && !debouncer.shouldSave(args.project_id)) {
       return { saved: false, reason: "debounced (30s window)" };
     }
@@ -29,11 +40,13 @@ export function buildToolHandlers(deps: Deps) {
   }
 
   async function load_checkpoint(args: { project_id: string }) {
+    assertValidProjectId(args.project_id);
     const bundle = await store.load(args.project_id);
     return { bundle };
   }
 
   async function append_decision(args: { project_id: string; text: string; rationale?: string }) {
+    assertValidProjectId(args.project_id);
     const base = await loadOrCreate(store, args.project_id, "unknown");
     const id = `d_${base.decisions.length + 1}`;
     const updated = mergePatch(base, {
@@ -44,6 +57,7 @@ export function buildToolHandlers(deps: Deps) {
   }
 
   async function append_todo(args: { project_id: string; text: string; status?: "pending" | "in_progress" | "done" }) {
+    assertValidProjectId(args.project_id);
     const base = await loadOrCreate(store, args.project_id, "unknown");
     const id = `t_${base.todos.length + 1}`;
     const updated = mergePatch(base, { todos: [...base.todos, { id, text: args.text, status: args.status ?? "pending" }] });
@@ -55,6 +69,7 @@ export function buildToolHandlers(deps: Deps) {
 
   async function get_project_id(args: { cwd: string }) {
     const r = await resolveProjectId(args.cwd);
+    assertValidProjectId(r.id);
     return { project_id: r.id, resolved_from: r.resolved_from };
   }
 
