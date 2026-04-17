@@ -6,6 +6,7 @@ import { buildToolHandlers } from "../../src/mcp/tools.js";
 import { FileBundleStore } from "../../src/store/file_store.js";
 import { Debouncer } from "../../src/debounce.js";
 import { AdapterRegistry } from "../../src/adapters/types.js";
+// InvalidParamsError is tested via rejection messages below
 
 let tmp: string;
 beforeEach(() => {
@@ -114,5 +115,38 @@ describe("tool handlers", () => {
     expect(c.decision_id).toBe("d_3");
     const { bundle } = await h.load_checkpoint({ project_id: "s" });
     expect(bundle?.decisions).toHaveLength(3);
+  });
+
+  it("save_checkpoint throws InvalidParamsError when project_id is missing", async () => {
+    const h = buildToolHandlers({
+      store: new FileBundleStore(), debouncer: new Debouncer(0), adapters: new AdapterRegistry(),
+    });
+    await expect(h.save_checkpoint({ source_ide: "cursor", bundle_patch: {} } as never))
+      .rejects.toThrow(/missing or empty required string arg: project_id/);
+  });
+
+  it("load_checkpoint throws InvalidParamsError when project_id is undefined", async () => {
+    const h = buildToolHandlers({
+      store: new FileBundleStore(), debouncer: new Debouncer(0), adapters: new AdapterRegistry(),
+    });
+    await expect(h.load_checkpoint({} as never))
+      .rejects.toThrow(/missing or empty required string arg: project_id/);
+  });
+
+  it("get_project_id throws InvalidParamsError when cwd is missing", async () => {
+    const h = buildToolHandlers({
+      store: new FileBundleStore(), debouncer: new Debouncer(0), adapters: new AdapterRegistry(),
+    });
+    await expect(h.get_project_id({} as never))
+      .rejects.toThrow(/missing or empty required string arg: cwd/);
+  });
+
+  it("assertValidProjectId does not silently accept 'undefined' string coercion", async () => {
+    const h = buildToolHandlers({
+      store: new FileBundleStore(), debouncer: new Debouncer(0), adapters: new AdapterRegistry(),
+    });
+    // undefined is caught by requireString first (missing-arg error), not by the pattern regex
+    await expect(h.load_checkpoint({ project_id: undefined } as never))
+      .rejects.toThrow(/missing or empty required string arg: project_id/);
   });
 });
