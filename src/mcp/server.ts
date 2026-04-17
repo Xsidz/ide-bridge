@@ -10,8 +10,14 @@ import { antigravityAdapter } from "../adapters/antigravity.js";
 import { genericAdapter } from "../adapters/generic.js";
 import { logger } from "../util/log.js";
 import { findFreePort } from "../util/port.js";
+import type { BundleStore } from "../store/types.js";
 
-export interface StartOpts { port: number; }
+export interface StartOpts {
+  port: number;
+  store?: BundleStore;
+  debouncer?: Debouncer;
+  adapters?: AdapterRegistry;
+}
 export interface Handle { url: string; port: number; stop: () => Promise<void>; }
 
 const TOOL_DESCRIPTIONS: Record<string, string> = {
@@ -24,14 +30,19 @@ const TOOL_DESCRIPTIONS: Record<string, string> = {
 };
 
 export async function startMcpServer(opts: StartOpts): Promise<Handle> {
-  const adapters = new AdapterRegistry();
-  [claudeCodeAdapter, cursorAdapter, kiroAdapter, antigravityAdapter, genericAdapter]
-    .forEach(a => adapters.register(a));
+  const adapters = opts.adapters ?? (() => {
+    const r = new AdapterRegistry();
+    [claudeCodeAdapter, cursorAdapter, kiroAdapter, antigravityAdapter, genericAdapter]
+      .forEach(a => r.register(a));
+    return r;
+  })();
   const handlers = buildToolHandlers({
-    store: new FileBundleStore(), debouncer: new Debouncer(30_000), adapters,
+    store: opts.store ?? new FileBundleStore(),
+    debouncer: opts.debouncer ?? new Debouncer(30_000),
+    adapters,
   });
 
-  const app: FastifyInstance = Fastify({ logger: false });
+  const app: FastifyInstance = Fastify({ logger: false, bodyLimit: 10 * 1024 * 1024 });
 
   app.post("/mcp", async (req, reply) => {
     const body = req.body as { jsonrpc: string; id: number | string; method: string; params?: { name?: string; arguments?: unknown } };

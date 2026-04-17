@@ -37,4 +37,34 @@ describe("MCP HTTP server", () => {
     const parsed = JSON.parse(j.result.content[0]!.text);
     expect(parsed.bundle.plan.summary).toBe("hi");
   });
+
+  it("initialize returns protocolVersion and serverInfo", async () => {
+    const { request } = await import("node:http");
+    const body = JSON.stringify({ jsonrpc: "2.0", id: 99, method: "initialize", params: {} });
+    const parsed = new URL(`${url}/mcp`);
+    const j = await new Promise<{ result: { protocolVersion: string; serverInfo: { name: string; version: string }; capabilities: object } }>((resolve, reject) => {
+      const req = request({ hostname: parsed.hostname, port: Number(parsed.port), path: "/mcp", method: "POST",
+        headers: { "content-type": "application/json", "content-length": Buffer.byteLength(body), "connection": "close" } }, (res) => {
+        let data = "";
+        res.on("data", (c: string) => { data += c; });
+        res.on("end", () => resolve(JSON.parse(data)));
+      });
+      req.on("error", reject);
+      req.end(body);
+    });
+    expect(j.result.protocolVersion).toBe("2025-06-18");
+    expect(j.result.serverInfo.name).toBe("ide-bridge");
+    expect(j.result.capabilities).toHaveProperty("tools");
+  });
+
+  it("unknown method returns JSON-RPC error -32601", async () => {
+    const r = await fetch(`${url}/mcp`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 7, method: "no_such_method" }),
+    });
+    const j = await r.json() as { error: { code: number; message: string } };
+    expect(j.error.code).toBe(-32601);
+    expect(j.error.message).toMatch(/not implemented|unknown/i);
+  });
 });

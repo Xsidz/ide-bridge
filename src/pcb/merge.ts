@@ -9,6 +9,20 @@ function mergeById<T extends { id: string }>(a: T[], b: T[] | undefined): T[] {
   return [...byId.values()];
 }
 
+const BLOCKED_KEYS = new Set(["__proto__", "constructor", "prototype"]);
+
+function safeMergeMetadata(
+  base: Record<string, unknown>,
+  patch: Record<string, unknown>,
+): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...base };
+  for (const [k, v] of Object.entries(patch)) {
+    if (BLOCKED_KEYS.has(k)) continue;
+    out[k] = v;
+  }
+  return out;
+}
+
 export function mergePatch(base: Pcb, patch: PcbPatch): Pcb {
   return {
     ...base,
@@ -25,7 +39,7 @@ export function mergePatch(base: Pcb, patch: PcbPatch): Pcb {
     attachments: mergeById(base.attachments, patch.attachments),
     capabilities_required: patch.capabilities_required ?? base.capabilities_required,
     last_source_capabilities: patch.last_source_capabilities ?? base.last_source_capabilities,
-    metadata: { ...base.metadata, ...(patch.metadata ?? {}) },
+    metadata: safeMergeMetadata(base.metadata, patch.metadata ?? {}),
     updated_at: new Date().toISOString(),
   };
 }
