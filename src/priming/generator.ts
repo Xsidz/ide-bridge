@@ -22,10 +22,11 @@ export async function writePriming(ide: string, projectRoot: string): Promise<st
     let existing = "";
     try { existing = await fs.readFile(dest, "utf8"); } catch { /* file absent */ }
     const marker = "<!-- ide-bridge:priming -->";
-    if (!existing.includes(marker)) {
-      const sep = existing ? existing + "\n\n" : "";
-      await fs.writeFile(dest, `${sep}${marker}\n${body}`);
+    if (existing.includes(marker)) {
+      return dest; // already primed — don't touch
     }
+    const separator = existing ? `\n\n---\n\n${existing.trimStart()}` : "";
+    await fs.writeFile(dest, `${marker}\n${body}${separator}`);
   } else {
     await fs.writeFile(dest, body);
   }

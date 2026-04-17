@@ -175,6 +175,404 @@ project_id: acme-billing-service
 
 **Default port:** `31415`. On conflict, the daemon probes `31416`–`31425` and writes the chosen port to `~/.ide-bridge/config.json`.
 
+## Using ide-bridge end to end
+
+This section walks through one full cycle: start the daemon, wire up two IDEs, save a checkpoint in one, resume it in the other. It takes roughly 10 minutes end to end on a fresh install.
+
+### Prerequisites
+
+- Node 22+
+- pnpm 10+ (via Corepack: `corepack enable && corepack prepare pnpm@latest --activate`)
+- One or more of: Claude Code, Cursor, Kiro, or Antigravity installed
+- About 5–10 minutes
+
+### 1. Install and start the daemon
+
+ide-bridge is not yet published to the npm registry. Install from the packed tarball:
+
+```bash
+# From the repo root — pack first if you haven't already
+pnpm build
+pnpm pack
+# Installs the binary globally
+npm install -g ./ide-bridge-0.1.0-alpha.0.tgz
+```
+
+Alternatively, link from the repo checkout so changes take effect immediately:
+
+```bash
+pnpm build
+pnpm link --global   # run pnpm setup && source ~/.zshrc first if pnpm bin -g isn't on PATH
+```
+
+Once installed, start the daemon in the foreground:
+
+```bash
+ide-bridge start
+```
+
+Expected output:
+
+```
+ide-bridge listening on http://127.0.0.1:31415/mcp
+```
+
+The daemon stays in the foreground. Press `Ctrl+C` to stop, or run `ide-bridge stop` from another terminal. To have it start automatically with your machine, skip to [Running as a service](#running-as-a-service-optional).
+
+### 2. Initialize the project
+
+Navigate to your project directory, then run:
+
+```bash
+cd /path/to/your-project
+ide-bridge init
+```
+
+This writes `.ide-bridge.yaml` in the project root:
+
+```yaml
+project_id: your-project
+# checked in by default — share across machines/teammates.
+# Pass --gitignore on init or add to .gitignore to keep private.
+```
+
+This file is the source of truth for project identity. Every IDE agent that opens a terminal in this directory will resolve to the same `project_id`, which means their checkpoints share the same bundle. Check this file in to your repo so teammates and other machines get the same ID automatically.
+
+If you want to keep the file private (single-user local workflow), use:
+
+```bash
+ide-bridge init --gitignore
+```
+
+### 3. Prime and wire your source IDE (example: Cursor)
+
+Priming writes a markdown instruction file into a directory the IDE's agent reads on every session start. It tells the agent *how* to use the bridge tools. Without priming the agent doesn't know the tools exist; without MCP config the agent can't reach the daemon even if it knows.
+
+**Step A — generate the priming file:**
+
+```bash
+ide-bridge priming cursor
+# writes .cursor/rules/ide-bridge.mdc (alwaysApply: true frontmatter)
+```
+
+**Step B — configure the MCP server in Cursor:**
+
+Open Cursor's MCP settings. On macOS, edit (or create):
+
+```
+~/Library/Application Support/Cursor/User/mcp.json
+```
+
+On Linux: `~/.config/Cursor/User/mcp.json`  
+On Windows: `%APPDATA%\Cursor\User\mcp.json`
+
+Add the ide-bridge server entry:
+
+```json
+{
+  "mcpServers": {
+    "ide-bridge": {
+      "url": "http://127.0.0.1:31415/mcp"
+    }
+  }
+}
+```
+
+**Step C — restart Cursor:**
+
+Fully quit and reopen Cursor. In Cursor's MCP panel (Settings → MCP), the `ide-bridge` server should appear with a green connected indicator. If it shows red, verify the daemon is running (`ide-bridge status`) and recheck the JSON path and syntax.
+
+### 4. Save your first checkpoint from Cursor
+
+Priming instructs the agent to save checkpoints automatically, but agents don't always act on priming instructions on their very first turn. To trigger a save explicitly, send this prompt in Cursor chat:
+
+```
+Save the current context to the bridge now.
+Call bridge.save_checkpoint with source_ide "cursor" and include the current plan,
+open decisions, and any todos you know about.
+```
+
+The agent should call `bridge.save_checkpoint` and you'll see a tool response similar to:
+
+```json
+{
+  "saved": true,
+  "bundle_id": "bnd_1",
+  "updated_at": "2026-04-17T10:23:45.000Z"
+}
+```
+
+### 5. Verify the checkpoint landed
+
+From any terminal:
+
+```bash
+# List all known projects
+curl -s -X POST http://127.0.0.1:31415/mcp \
+  -H 'content-type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"list_projects","arguments":{}}}' \
+  | jq
+
+# Load the checkpoint for your project
+curl -s -X POST http://127.0.0.1:31415/mcp \
+  -H 'content-type: application/json' \
+  -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"load_checkpoint","arguments":{"project_id":"your-project"}}}' \
+  | jq
+```
+
+You can also inspect the raw bundle file directly:
+
+```bash
+cat ~/.ide-bridge/projects/your-project/bundle.json | jq
+```
+
+The bundle will contain `plan_steps`, `decisions`, `todos`, `git`, and `conversation.summary` fields populated with whatever the Cursor agent saved.
+
+### 6. Switch to a second IDE (example: Claude Code)
+
+**Step A — generate the priming file:**
+
+```bash
+ide-bridge priming claude-code
+# appends a bridge section to CLAUDE.md in the project root
+```
+
+**Step B — configure the MCP server in Claude Code:**
+
+```bash
+claude mcp add ide-bridge http://127.0.0.1:31415/mcp --transport http
+```
+
+Or manually add to `~/.claude.json`:
+
+```json
+{
+  "mcpServers": {
+    "ide-bridge": {
+      "url": "http://127.0.0.1:31415/mcp",
+      "type": "http"
+    }
+  }
+}
+```
+
+**Step C — open the project in Claude Code and load the checkpoint:**
+
+Start a new Claude Code session in the same project directory. To trigger the load explicitly:
+
+```
+Before we start, call bridge.load_checkpoint to get the project context.
+The project_id is in .ide-bridge.yaml — or you can pass it directly: "your-project".
+```
+
+Claude Code will call `bridge.load_checkpoint` and return the bundle. It should summarize back:
+
+```
+Loaded checkpoint for "your-project" (saved from cursor).
+Plan: [steps from the bundle]
+Open decisions: [decision list]
+Todos: [todo list]
+Git: branch main, 3 unstaged changes
+```
+
+From this point Claude Code knows everything Cursor knew when it last saved.
+
+### 7. Verify the round-trip
+
+After Claude Code has run at least one `save_checkpoint`, load again and check the `last_source_ide` field:
+
+```bash
+curl -s -X POST http://127.0.0.1:31415/mcp \
+  -H 'content-type: application/json' \
+  -d '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"load_checkpoint","arguments":{"project_id":"your-project"}}}' \
+  | jq '.result.bundle.last_source_ide'
+# "claude-code"
+```
+
+The field should now reflect Claude Code as the most recent saver — confirming the round-trip completed.
+
+---
+
+## Per-IDE setup reference
+
+### Claude Code
+
+- **Priming:** `ide-bridge priming claude-code` — appends an `<!-- ide-bridge:priming -->` block to `CLAUDE.md`. Safe to run multiple times; re-runs are no-ops if the marker is already present.
+- **MCP config:** `~/.claude.json` → `mcpServers`, or via:
+  ```bash
+  claude mcp add ide-bridge http://127.0.0.1:31415/mcp --transport http
+  ```
+- **Auto-save hooks:** Add to `~/.claude/settings.json` (see [Hooks section](#hooks-claude-code-auto-save)) to trigger `ide-bridge hook save` on every turn boundary.
+
+### Cursor
+
+- **Priming:** `ide-bridge priming cursor` — writes `.cursor/rules/ide-bridge.mdc` with `alwaysApply: true` frontmatter so Cursor injects the instructions into every agent call automatically.
+- **MCP config file locations:**
+  - macOS: `~/Library/Application Support/Cursor/User/mcp.json`
+  - Linux: `~/.config/Cursor/User/mcp.json`
+  - Windows: `%APPDATA%\Cursor\User\mcp.json`
+- **JSON structure:**
+  ```json
+  {
+    "mcpServers": {
+      "ide-bridge": {
+        "url": "http://127.0.0.1:31415/mcp"
+      }
+    }
+  }
+  ```
+
+### Kiro
+
+- **Priming:** `ide-bridge priming kiro` — writes `.kiro/steering/ide-bridge.md`. Kiro reads all files in `.kiro/steering/` as persistent steering context.
+- **MCP config:** Add via the Kiro settings panel (Settings → MCP Servers), or create/edit `.kiro/mcp.json` in the project root:
+  ```json
+  {
+    "mcpServers": {
+      "ide-bridge": {
+        "url": "http://127.0.0.1:31415/mcp"
+      }
+    }
+  }
+  ```
+
+### Antigravity
+
+- **Priming:** `ide-bridge priming antigravity` — prepends a bridge instructions block to `AGENTS.md` (the file Antigravity's agent reads on startup).
+- **MCP config:** Check your Antigravity version's settings UI for "MCP Servers" or "Tool servers". Point it at `http://127.0.0.1:31415/mcp`.
+
+### Any other MCP-capable IDE (generic fallback)
+
+- **Priming:** `ide-bridge priming generic` — prepends a bridge instructions block to `AGENTS.md`.
+- **MCP config:** Configure the IDE's MCP client to point at `http://127.0.0.1:31415/mcp`. The exact setting name varies by IDE; look for "MCP servers", "tool servers", or "external tools" in its settings.
+
+---
+
+## Hooks (Claude Code auto-save)
+
+Claude Code supports lifecycle hooks. To auto-save on every turn boundary, add to `~/.claude/settings.json`:
+
+```json
+{
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [{ "type": "command", "command": "ide-bridge hook save" }]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": ".*",
+        "hooks": [{ "type": "command", "command": "ide-bridge hook save" }]
+      }
+    ]
+  }
+}
+```
+
+These hooks run `ide-bridge hook save`, which resolves the project ID from the current working directory and POSTs a `save_checkpoint` call to the local daemon. The daemon's 30-second per-project debounce prevents repeated saves from thrashing the disk — only the first call within any 30-second window actually writes.
+
+---
+
+## Running as a service (optional)
+
+So the daemon restarts automatically when your machine boots:
+
+```bash
+ide-bridge install-service
+```
+
+- **macOS:** writes `~/Library/LaunchAgents/com.ide-bridge.daemon.plist`  
+  Load immediately with: `launchctl load ~/Library/LaunchAgents/com.ide-bridge.daemon.plist`
+- **Linux:** writes `~/.config/systemd/user/ide-bridge.service`  
+  Enable and start with: `systemctl --user enable --now ide-bridge.service`
+
+Once the service is running, `ide-bridge start` in a new terminal will print an error saying the daemon is already running — that's expected.
+
+---
+
+## Verifying everything is wired
+
+From any terminal:
+
+```bash
+ide-bridge status
+# running pid=12345 port=31415
+
+curl -s -X POST http://127.0.0.1:31415/mcp \
+  -H 'content-type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | jq
+# Should list 6 tools:
+#   save_checkpoint, load_checkpoint, append_decision,
+#   append_todo, list_projects, get_project_id
+```
+
+Each IDE's MCP panel should show `ide-bridge` as connected. If it shows disconnected or the tools panel is empty, the IDE cannot reach the daemon — fix the MCP config before worrying about priming.
+
+---
+
+## Troubleshooting
+
+### "command not found: ide-bridge"
+
+The global install didn't reach your PATH.
+
+- If you used `pnpm link --global`: run `pnpm setup && source ~/.zshrc` first to ensure pnpm's global bin directory is on PATH.
+- If you used `npm install -g ./<tarball>`: confirm `npm bin -g` prints a path that's on your PATH, e.g. `/usr/local/bin`.
+
+### "Error: kill ESRCH" when running `ide-bridge stop`
+
+Stale config. The daemon's pid file (`~/.ide-bridge/config.json`) points at a process that's already gone. Safe to ignore — the next `ide-bridge start` will overwrite it. To clear it manually:
+
+```bash
+rm ~/.ide-bridge/config.json
+```
+
+### MCP tool errors with `-32602`
+
+The agent called a tool with a missing required argument. Read the error message — it names the missing argument. Common cases:
+
+- `missing or empty required string arg: project_id` — the agent didn't read `.ide-bridge.yaml`. Tell it explicitly: *"The project_id is `your-project`."*
+- `missing or empty required string arg: cwd` — the agent called `bridge.get_project_id()` without the `cwd` argument. Have it skip that tool and use the explicit `project_id` from `.ide-bridge.yaml` instead.
+
+### Checkpoint saved in IDE A but IDE B can't see it
+
+Both IDEs must resolve to the same `project_id`. Verify by running `ide-bridge init` in the project root and checking `.ide-bridge.yaml`. Both IDEs must be opened with their working directory set to that same project root.
+
+### IDE doesn't show the `bridge.*` tools
+
+Priming alone is not enough. Priming tells the agent *how* to use the bridge; the MCP server config in the IDE lets the agent *reach* the bridge. These are independent steps. Verify via the IDE's MCP settings panel — `ide-bridge` must show as connected before any tool call can succeed.
+
+### Fidelity mismatch on handoff
+
+Adapters have different fidelity caps: Claude Code L3, Cursor L2, Kiro L1, Antigravity L1, Generic L0. The daemon picks `min(source_fidelity, target_fidelity)` automatically. Verbatim conversation turns only transfer between IDEs whose caps overlap at L2 or above. See the Supported IDEs matrix above.
+
+---
+
+## Workflow patterns
+
+### "I hit my usage limit mid-task"
+
+1. Open a new agentic IDE session in the same project directory.
+2. If priming is already set up, the agent will load the checkpoint on startup (you may need to nudge it: *"Call `bridge.load_checkpoint` first."*).
+3. The bundle summary tells the new IDE what the previous IDE was mid-way through — plan steps, open decisions, todos, git state.
+
+### "Multiple teammates on the same repo"
+
+v0.1 is single-user local. The daemon binds to `127.0.0.1` only and there is no sync between machines. For multi-user workflows, wait for v0.2 (remote sync via `--remote <url>`).
+
+### "I want to reset everything"
+
+```bash
+ide-bridge stop
+rm -rf ~/.ide-bridge
+```
+
+All checkpoints, history entries, and daemon config live under `~/.ide-bridge`. Deleting it is a clean slate.
+
+---
+
 ## How it works
 
 On `save_checkpoint`, the daemon:
