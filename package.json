@@ -43,7 +43,7 @@
     "ide-bridge": "./dist/index.js"
   },
   "engines": {
-    "node": ">=20.10.0"
+    "node": ">=22.0.0"
   },
   "scripts": {
     "prebuild": "node -e \"require('node:fs').cpSync('src/priming/templates','dist/priming/templates',{recursive:true})\"",

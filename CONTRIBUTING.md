@@ -13,7 +13,7 @@ pnpm typecheck
 pnpm build
 ```
 
-Node 20.10+ required. `pnpm` is the package manager (pinned via `packageManager` field).
+Node 22+ required. `pnpm` is the package manager (pinned via `packageManager` field).
 
 ## Pull requests
 
