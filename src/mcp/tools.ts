@@ -6,6 +6,7 @@ import { mergePatch, type PcbPatch } from "../pcb/merge.js";
 import { resolveProjectId } from "../identity/resolver.js";
 import { extractSummary } from "../pcb/summary.js";
 
+// ts-prune-ignore-next
 export interface Deps { store: BundleStore; debouncer: Debouncer; adapters: AdapterRegistry; }
 
 async function loadOrCreate(store: BundleStore, projectId: string, sourceIde: string): Promise<Pcb> {

@@ -3,6 +3,7 @@ import path from "node:path";
 import crypto from "node:crypto";
 import { normalizeRemote, readGitState } from "./git.js";
 
+// ts-prune-ignore-next
 export interface Resolved { id: string; resolved_from: "explicit" | "git" | "path"; }
 
 async function readText(p: string): Promise<string | null> {

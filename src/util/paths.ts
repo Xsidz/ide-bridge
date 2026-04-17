@@ -16,6 +16,3 @@ export function historyDir(projectId: string): string {
 export function configPath(): string {
   return path.join(storeRoot(), "config.json");
 }
-export function logPath(): string {
-  return path.join(storeRoot(), "daemon.log");
-}
