@@ -1,0 +1,2 @@
+{"type":"user","message":{"role":"user","content":[{"type":"text","text":"Add OAuth"}]},"timestamp":"2026-04-17T10:00:00Z","uuid":"u1"}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"I'll start by..."}]},"timestamp":"2026-04-17T10:00:01Z","uuid":"u2"}
