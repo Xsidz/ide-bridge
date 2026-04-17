@@ -4,7 +4,7 @@
   "description": "Cross-IDE context bridge over MCP — save a checkpoint from one agentic IDE, resume in another with no lost context",
   "type": "module",
   "license": "MIT",
-  "author": "Xsidz <hello@neuralarc.ai> (https://github.com/Xsidz)",
+  "author": "Xsidz <siddhesh.kabraa@gmail.com> (https://github.com/Xsidz)",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Xsidz/ide-bridge.git"
