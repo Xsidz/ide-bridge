@@ -12,7 +12,7 @@
   },
   "scripts": {
     "prebuild": "node -e \"require('node:fs').cpSync('src/priming/templates','dist/priming/templates',{recursive:true})\"",
-    "build": "tsc",
+    "build": "tsc && chmod +x dist/index.js",
     "dev": "tsx src/index.ts",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -20,6 +20,7 @@
     "typecheck": "tsc --noEmit",
     "prepublishOnly": "pnpm build"
   },
+  "files": ["dist", "README.md", "LICENSE"],
   "keywords": [],
   "author": "",
   "packageManager": "pnpm@10.33.0",
