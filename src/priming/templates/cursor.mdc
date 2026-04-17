@@ -1,6 +1,21 @@
 ---
-name: ide-bridge priming
+name: ide-bridge cross-IDE context protocol
 alwaysApply: true
+description: MANDATORY protocol for sharing project context with other agentic IDEs via MCP
 ---
 
-On start, call `bridge.load_checkpoint` to load prior project context. Save via `bridge.save_checkpoint` before file edits and after sub-task completion. Use `bridge.append_decision` and `bridge.append_todo` for those record types.
+# ide-bridge: cross-IDE context protocol (mandatory)
+
+You are connected to an MCP server named `bridge`. **Every Cursor session in this repo must start with a single call to `bridge.load_checkpoint`.** Do this before any other action.
+
+## Protocol
+
+1. **Session start:** `bridge.load_checkpoint({ project_id: "<id from .ide-bridge.yaml>" })`. Summarise the plan, decisions, todos.
+2. **On decision:** `bridge.append_decision({ project_id, text, rationale })`.
+3. **On todo:** `bridge.append_todo({ project_id, text })`.
+4. **Before edits / after sub-tasks / on pause:** `bridge.save_checkpoint({ project_id, source_ide: "cursor", bundle_patch: { plan, decisions, todos } })`.
+
+## Notes
+
+- Read `.ide-bridge.yaml` at repo root for `project_id`. Do NOT call `bridge.get_project_id()` without a `cwd` argument.
+- -32602 responses name the missing argument — fix the call, retry.
