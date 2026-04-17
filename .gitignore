@@ -8,3 +8,12 @@ coverage/
 .env
 .env.*
 !.env.example
+
+# Local test artifacts from exercising the CLI in this repo during dev
+CLAUDE.md
+.kiro/
+*.tgz
+.cursor/rules/ide-bridge.mdc
+.cursor/rules/_imported.mdc
+.ide-bridge.yaml
+AGENTS.md
