@@ -30,6 +30,14 @@ describe("FileBundleStore", () => {
     const history = await s.listHistory("p");
     expect(history.length).toBe(2);
   });
+  it("history entries expose the real ts and bundle_id", async () => {
+    const s = new FileBundleStore();
+    const b = emptyPcb("p", "claude-code");
+    await s.save(b);
+    const [entry] = await s.listHistory("p");
+    expect(entry?.bundle_id).toBe(b.bundle_id);
+    expect(entry?.ts).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z$/);
+  });
   it("list returns all known project ids", async () => {
     const s = new FileBundleStore();
     await s.save(emptyPcb("alpha", "a"));
