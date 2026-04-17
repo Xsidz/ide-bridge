@@ -1,0 +1,6 @@
+---
+name: ide-bridge priming
+alwaysApply: true
+---
+
+On start, call `bridge.load_checkpoint` to load prior project context. Save via `bridge.save_checkpoint` before file edits and after sub-task completion. Use `bridge.append_decision` and `bridge.append_todo` for those record types.
