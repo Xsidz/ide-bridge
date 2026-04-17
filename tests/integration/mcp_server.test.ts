@@ -67,4 +67,34 @@ describe("MCP HTTP server", () => {
     expect(j.error.code).toBe(-32601);
     expect(j.error.message).toMatch(/not implemented|unknown/i);
   });
+
+  it("tool call with missing project_id returns JSON-RPC -32602, not HTTP 500", async () => {
+    const r = await fetch(`${url}/mcp`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        jsonrpc: "2.0", id: 42, method: "tools/call",
+        params: { name: "load_checkpoint", arguments: {} },
+      }),
+    });
+    expect(r.status).toBe(200);
+    const j = await r.json() as { error: { code: number; message: string } };
+    expect(j.error.code).toBe(-32602);
+    expect(j.error.message).toMatch(/project_id/);
+  });
+
+  it("tool call with missing cwd for get_project_id returns JSON-RPC -32602", async () => {
+    const r = await fetch(`${url}/mcp`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        jsonrpc: "2.0", id: 43, method: "tools/call",
+        params: { name: "get_project_id", arguments: {} },
+      }),
+    });
+    expect(r.status).toBe(200);
+    const j = await r.json() as { error: { code: number; message: string } };
+    expect(j.error.code).toBe(-32602);
+    expect(j.error.message).toMatch(/cwd/);
+  });
 });

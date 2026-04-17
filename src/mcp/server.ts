@@ -2,7 +2,7 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { FileBundleStore } from "../store/file_store.js";
 import { Debouncer } from "../debounce.js";
 import { AdapterRegistry } from "../adapters/types.js";
-import { buildToolHandlers } from "./tools.js";
+import { buildToolHandlers, InvalidParamsError } from "./tools.js";
 import { claudeCodeAdapter } from "../adapters/claude_code.js";
 import { cursorAdapter } from "../adapters/cursor.js";
 import { kiroAdapter } from "../adapters/kiro.js";
@@ -65,9 +65,20 @@ export async function startMcpServer(opts: StartOpts): Promise<Handle> {
       const args = body.params?.arguments ?? {};
       const fn = (handlers as Record<string, (a: unknown) => Promise<unknown>>)[name ?? ""];
       if (!fn) return reply.send({ jsonrpc: "2.0", id: body.id, error: { code: -32601, message: `unknown tool ${name}` } });
-      const result = await fn(args);
-      return reply.send({ jsonrpc: "2.0", id: body.id,
-        result: { content: [{ type: "text", text: JSON.stringify(result) }] } });
+      try {
+        const result = await fn(args);
+        return reply.send({ jsonrpc: "2.0", id: body.id,
+          result: { content: [{ type: "text", text: JSON.stringify(result) }] } });
+      } catch (e) {
+        const message = (e as Error).message ?? String(e);
+        if (e instanceof InvalidParamsError) {
+          return reply.send({ jsonrpc: "2.0", id: body.id,
+            error: { code: -32602, message: `Invalid params: ${message}` } });
+        }
+        logger.error({ err: e, tool: name }, "tool handler threw");
+        return reply.send({ jsonrpc: "2.0", id: body.id,
+          error: { code: -32603, message: `Internal error: ${message}` } });
+      }
     }
     return reply.send({ jsonrpc: "2.0", id: body.id, error: { code: -32601, message: "method not implemented" } });
   });
