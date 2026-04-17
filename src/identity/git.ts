@@ -21,8 +21,17 @@ export async function readGitState(cwd: string): Promise<GitState | null> {
   if (!(await git.checkIsRepo())) return null;
   const remotes = await git.getRemotes(true);
   const origin = remotes.find(r => r.name === "origin");
-  const branch = (await git.raw(["rev-parse", "--abbrev-ref", "HEAD"])).trim();
-  const head = (await git.raw(["rev-parse", "--short", "HEAD"])).trim();
+
+  let branch = "";
+  let head = "";
+  try {
+    const rawBranch = (await git.raw(["rev-parse", "--abbrev-ref", "HEAD"])).trim();
+    branch = rawBranch === "HEAD" ? "" : rawBranch;  // detached HEAD → empty
+    head = (await git.raw(["rev-parse", "--short", "HEAD"])).trim();
+  } catch {
+    // empty repo (no commits yet) — leave branch/head empty
+  }
+
   const status = await git.status();
   return {
     remote: origin?.refs.fetch ?? "",
