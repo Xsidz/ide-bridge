@@ -1,9 +1,44 @@
 {
   "name": "ide-bridge",
   "version": "0.1.0-alpha.0",
-  "description": "Cross-IDE context bridge over MCP",
+  "description": "Cross-IDE context bridge over MCP — save a checkpoint from one agentic IDE, resume in another with no lost context",
   "type": "module",
   "license": "MIT",
+  "author": "Xsidz <hello@neuralarc.ai> (https://github.com/Xsidz)",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Xsidz/ide-bridge.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Xsidz/ide-bridge/issues"
+  },
+  "homepage": "https://github.com/Xsidz/ide-bridge#readme",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "ide",
+    "claude-code",
+    "cursor",
+    "kiro",
+    "antigravity",
+    "agent",
+    "context",
+    "handoff",
+    "portable-context-bundle",
+    "pcb"
+  ],
+  "main": "./dist/daemon.js",
+  "types": "./dist/daemon.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/daemon.d.ts",
+      "import": "./dist/daemon.js"
+    }
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "bin": {
     "ide-bridge": "./dist/index.js"
   },
@@ -21,8 +56,6 @@
     "prepublishOnly": "pnpm build"
   },
   "files": ["dist", "README.md", "LICENSE"],
-  "keywords": [],
-  "author": "",
   "packageManager": "pnpm@10.33.0",
   "dependencies": {
     "better-sqlite3": "^12.9.0",
