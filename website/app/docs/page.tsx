@@ -52,15 +52,15 @@ export default function DocsPage() {
       </p>
 
       {/* Three-column card grid */}
-      <div className="not-prose mt-8 grid gap-4 sm:grid-cols-3">
+      <div className="not-prose mt-8 grid gap-6 lg:grid-cols-3">
         {CARDS.map((card) => (
           <Link
             key={card.href}
             href={card.href}
-            className="group block rounded-[4px] border border-[rgba(15,0,0,0.12)] bg-[#302c2c] p-6 transition-colors hover:border-[#646262]"
+            className="group block rounded-[4px] border border-[rgba(15,0,0,0.12)] bg-[#302c2c] p-5 sm:p-6 transition-colors hover:border-[#646262]"
           >
             <p className="mb-2 text-sm font-bold text-[#fdfcfc]">{card.title}</p>
-            <p className="mb-4 text-xs leading-[1.5] text-[#9a9898]">
+            <p className="mb-4 text-sm leading-[1.5] text-[#9a9898]">
               {card.description}
             </p>
             <span className="text-xs font-medium text-[#007aff]">

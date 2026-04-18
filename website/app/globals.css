@@ -64,6 +64,7 @@ html {
   color: #fdfcfc;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
 }
 
 body {
@@ -75,6 +76,7 @@ body {
   line-height: 1.5;
   min-height: 100dvh;
   margin: 0;
+  overflow-x: hidden;
 }
 
 /* ── Typography defaults ────────────────────────────────────── */

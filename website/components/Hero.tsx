@@ -33,8 +33,8 @@ export default function Hero() {
 
         {/* H1 */}
         <h1
+          className="text-3xl md:text-[2.375rem]"
           style={{
-            fontSize: "2.375rem",
             fontWeight: 700,
             color: "#fdfcfc",
             margin: "0 0 16px 0",
