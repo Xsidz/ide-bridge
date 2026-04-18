@@ -1,0 +1,132 @@
+export const metadata = {
+  title: "Troubleshooting — ide-bridge docs",
+  description:
+    "Solutions for common ide-bridge installation, MCP, handoff, and fidelity issues.",
+};
+
+import { Callout } from "../../../components/Callout";
+
+# Troubleshooting
+
+---
+
+## Installation
+
+### `command not found: ide-bridge`
+
+The global install succeeded but the binary isn't on your `PATH`.
+
+**If you used `pnpm link --global`:** pnpm's global bin directory may not be on your PATH yet. Run:
+
+```bash
+pnpm setup
+source ~/.zshrc   # or ~/.bashrc depending on your shell
+```
+
+Then confirm the global bin is reachable:
+
+```bash
+pnpm bin -g   # prints the global bin path
+```
+
+Add that path to your `PATH` if it isn't already.
+
+**If you used `npm install -g ./<tarball>`:** confirm npm's global bin is on your PATH:
+
+```bash
+npm bin -g   # e.g. /usr/local/bin
+```
+
+If it isn't, add it to your shell profile.
+
+---
+
+### `Error: kill ESRCH` when running `ide-bridge stop`
+
+The daemon has already exited but its PID is still recorded in `~/.ide-bridge/config.json`. This is a stale-config issue — it is safe to ignore.
+
+The next `ide-bridge start` will overwrite the stale entry automatically. To clear it manually:
+
+```bash
+rm ~/.ide-bridge/config.json
+```
+
+<Callout variant="info">
+  The daemon will recreate <code>config.json</code> with a fresh PID the next time it starts.
+</Callout>
+
+---
+
+## MCP errors
+
+### `-32602 invalid params: missing or empty required string arg: project_id`
+
+The agent called a bridge tool without providing `project_id` and the daemon could not auto-resolve the project identity from context.
+
+**Fix:** tell the agent explicitly what the project ID is:
+
+> "The project_id is `your-project` — it's in `.ide-bridge.yaml` in the project root."
+
+If `.ide-bridge.yaml` doesn't exist yet, run `ide-bridge init` in the project root to create it.
+
+---
+
+### `-32602 invalid params: missing or empty required string arg: cwd`
+
+The agent called `bridge.get_project_id` without passing the required `cwd` argument.
+
+**Fix:** skip `get_project_id` entirely and pass the `project_id` directly from `.ide-bridge.yaml`:
+
+> "Skip `get_project_id`. Use `project_id: your-project` directly."
+
+The `get_project_id` tool is a diagnostic utility — agent priming files should never rely on it for normal operation.
+
+---
+
+## Handoff issues
+
+### Saved in IDE A, context not visible in IDE B
+
+Both IDEs must resolve to the **same `project_id`**. The most common cause is one IDE opening a different working directory than the other.
+
+Verify by checking the project root in both IDEs, then run:
+
+```bash
+ide-bridge init
+cat .ide-bridge.yaml
+```
+
+Both IDEs must be launched with their working directory set to the same project root. The `project_id` in `.ide-bridge.yaml` is the tie-breaker — if both IDEs read the same file, they resolve to the same bundle.
+
+---
+
+### IDE doesn't show the `bridge.*` tools
+
+Priming and MCP config are two independent steps. Priming tells the agent *how* to use the bridge; MCP config lets the agent *reach* the bridge. A missing MCP config means no tools, regardless of priming.
+
+Verify in the IDE's MCP settings panel: `ide-bridge` must appear as **connected** (green indicator). If it shows disconnected:
+
+1. Confirm the daemon is running: `ide-bridge status`
+2. Check the MCP config file path and JSON syntax for your IDE (see [Adapters](/docs/adapters))
+3. Fully restart the IDE after editing the config
+
+---
+
+## Fidelity
+
+### Verbatim turns don't appear in a Kiro handoff
+
+Kiro's consume fidelity is **L1** (rolling summary). Verbatim turn sequences require L2 or above on both the producing and consuming side. A Claude Code → Kiro handoff is automatically downgraded to L1: the Kiro session receives the plan, decisions, TODOs, git state, and a rolling summary, but the verbatim turn history is not transferred.
+
+To preserve verbatim turns, both IDEs in the handoff pair must support at least L2. Claude Code and Cursor both operate at L2 or above. Kiro, Antigravity, and the generic adapter do not.
+
+<Callout variant="info">
+  See the <a href="/docs/adapters#fidelity-matrix">fidelity matrix</a> for the full list of per-IDE produce and consume levels.
+</Callout>
+
+---
+
+<div style={{ display: "flex", justifyContent: "space-between", marginTop: "3rem", paddingTop: "1.5rem", borderTop: "1px solid rgba(15,0,0,0.12)" }}>
+  <a href="/docs/hooks" style={{ color: "#007aff" }}>← Hooks</a>
+  <a href="/changelog" style={{ color: "#007aff" }}>Changelog →</a>
+</div>

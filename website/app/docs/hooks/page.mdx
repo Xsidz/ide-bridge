@@ -1,0 +1,119 @@
+export const metadata = {
+  title: "Hooks — ide-bridge docs",
+  description:
+    "How ide-bridge auto-installs SessionStart and PreCompact hooks into Claude Code to enable zero-friction checkpoint save and load.",
+};
+
+import { Callout } from "../../../components/Callout";
+
+# Hooks
+
+Running `ide-bridge priming claude-code` automatically merges two hooks into `.claude/settings.json`. These hooks make context persistence invisible — every session starts with the prior state loaded and every compaction preserves the in-progress state.
+
+---
+
+## What gets installed
+
+`ide-bridge priming claude-code` merges the following into `.claude/settings.json`:
+
+```json
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "ide-bridge hook load"
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "ide-bridge hook save"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+Both entries are marker-keyed and idempotent — re-running priming never produces duplicate hooks.
+
+---
+
+## SessionStart — auto-load
+
+The `SessionStart` hook fires on both `startup` (new session) and `resume` (continued session). When it fires, `ide-bridge hook load` runs and injects the current project's plan, decisions, and TODOs as context before the first agent turn.
+
+This means the Claude Code agent starts every session already knowing:
+
+- What the plan is and which steps are complete
+- What decisions have been made and why
+- What TODOs are open
+- The current git state (branch, HEAD, staged / unstaged diffs)
+
+No manual `bridge.load_checkpoint` call is needed at session start.
+
+---
+
+## PreCompact — auto-save
+
+The `PreCompact` hook fires just before Claude Code compacts the conversation to free context-window space. When it fires, `ide-bridge hook save` persists the current bundle fragment to the daemon.
+
+Without this hook, a compaction event can silently drop recent plan updates and decisions that the agent added after the last explicit save. With this hook, compaction becomes a lossless handoff — the state is written before the summary replaces the full history.
+
+<Callout variant="success" title="tip">
+  The combination of SessionStart (load) + PreCompact (save) means you can switch away from Claude Code mid-task — even mid-compaction — and the next IDE session starts with a complete picture.
+</Callout>
+
+---
+
+## Merge safety
+
+The hooks are written with a conservative merge strategy:
+
+- **Idempotent**: each hook is keyed by a unique marker. If the marker is already present in `.claude/settings.json`, the hook is not added a second time.
+- **Preserves other hooks**: only the two `ide-bridge`-owned entries are touched. Any other hooks you or another tool have written remain intact.
+- **No overwrite**: if `.claude/settings.json` already exists, only the `hooks` section is merged — all other settings are left unchanged.
+
+---
+
+## Opt out
+
+To generate only the priming file without touching `.claude/settings.json`:
+
+```bash
+ide-bridge priming claude-code --no-hooks
+```
+
+This writes the `CLAUDE.md` bridge block but skips the `SessionStart` and `PreCompact` hook installation. You can still call `ide-bridge hook load` and `ide-bridge hook save` manually, or add the hooks to your settings later.
+
+---
+
+## Silent failure
+
+If the ide-bridge daemon is not running when a hook fires:
+
+- `ide-bridge hook load` exits with code 0 and prints nothing.
+- `ide-bridge hook save` exits with code 0 and prints nothing.
+
+Neither hook ever blocks a Claude Code session. If the daemon is down, the hooks are silently no-ops — you won't lose context, you just won't get the automatic save/load for that session.
+
+<Callout variant="warning">
+  Silent failure means there is no in-session indication that the daemon is down. If you notice that <code>bridge.load_checkpoint</code> returns empty bundles, run <code>ide-bridge status</code> to verify the daemon is alive.
+</Callout>
+
+---
+
+<div style={{ display: "flex", justifyContent: "space-between", marginTop: "3rem", paddingTop: "1.5rem", borderTop: "1px solid rgba(15,0,0,0.12)" }}>
+  <a href="/docs/adapters" style={{ color: "#007aff" }}>← Adapters</a>
+  <a href="/docs/troubleshooting" style={{ color: "#007aff" }}>Troubleshooting →</a>
+</div>

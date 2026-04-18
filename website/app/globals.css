@@ -1,0 +1,135 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+@theme inline {
+  /* ── Color tokens ─────────────────────────────────────────── */
+  --color-bg-dark:          #201d1d;
+  --color-bg-surface:       #302c2c;
+  --color-bg-input:         #f8f7f7;
+  --color-bg-light:         #f1eeee;
+
+  --color-text-primary:     #fdfcfc;
+  --color-text-secondary:   #9a9898;
+  --color-text-muted:       #6e6e73;
+  --color-text-secondary-light: #424245;
+
+  --color-border-warm:      rgba(15, 0, 0, 0.12);
+  --color-border-tab:       #9a9898;
+  --color-border-outline:   #646262;
+
+  --color-accent:           #007aff;
+  --color-accent-hover:     #0056b3;
+  --color-accent-active:    #004085;
+
+  --color-danger:           #ff3b30;
+  --color-danger-hover:     #d70015;
+  --color-danger-active:    #a50011;
+
+  --color-success:          #30d158;
+
+  --color-warning:          #ff9f0a;
+  --color-warning-hover:    #cc7f08;
+  --color-warning-active:   #995f06;
+
+  /* ── Typography ───────────────────────────────────────────── */
+  --font-mono: var(--font-plex-mono), "IBM Plex Mono", ui-monospace, SFMono-Regular,
+    Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+
+  /* ── Spacing (8px grid) ───────────────────────────────────── */
+  --spacing-1:  8px;
+  --spacing-2:  16px;
+  --spacing-3:  24px;
+  --spacing-4:  32px;
+  --spacing-5:  40px;
+  --spacing-6:  48px;
+  --spacing-8:  64px;
+  --spacing-10: 80px;
+  --spacing-12: 96px;
+
+  /* ── Border radius ────────────────────────────────────────── */
+  --radius-default: 4px;
+  --radius-input:   6px;
+}
+
+/* ── Base reset ────────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-family: var(--font-mono);
+  background-color: #201d1d;
+  color: #fdfcfc;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background-color: #201d1d;
+  color: #fdfcfc;
+  font-family: var(--font-mono);
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.5;
+  min-height: 100dvh;
+  margin: 0;
+}
+
+/* ── Typography defaults ────────────────────────────────────── */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-mono);
+  color: #fdfcfc;
+  line-height: 1.5;
+}
+
+h1 { font-size: 2.375rem; font-weight: 700; }
+h2 { font-size: 1rem;     font-weight: 700; }
+
+p {
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+a {
+  color: #fdfcfc;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+a:hover {
+  color: #007aff;
+}
+
+/* ── Scrollbar ─────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #201d1d; }
+::-webkit-scrollbar-thumb { background: #646262; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #9a9898; }
+
+/* ── Focus states ──────────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid #007aff;
+  outline-offset: 2px;
+}
+
+/* ── Prose overrides for MDX ────────────────────────────────── */
+.prose {
+  --tw-prose-body: #fdfcfc;
+  --tw-prose-headings: #fdfcfc;
+  --tw-prose-links: #007aff;
+  --tw-prose-bold: #fdfcfc;
+  --tw-prose-counters: #9a9898;
+  --tw-prose-bullets: #9a9898;
+  --tw-prose-hr: rgba(15, 0, 0, 0.12);
+  --tw-prose-quotes: #9a9898;
+  --tw-prose-quote-borders: rgba(15, 0, 0, 0.12);
+  --tw-prose-captions: #9a9898;
+  --tw-prose-code: #fdfcfc;
+  --tw-prose-pre-code: #fdfcfc;
+  --tw-prose-pre-bg: #302c2c;
+  --tw-prose-th-borders: rgba(15, 0, 0, 0.12);
+  --tw-prose-td-borders: rgba(15, 0, 0, 0.12);
+  font-family: var(--font-mono);
+}
