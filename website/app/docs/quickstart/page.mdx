@@ -1,0 +1,191 @@
+export const metadata = {
+  title: "Quickstart — ide-bridge docs",
+  description:
+    "Step-by-step walkthrough from fresh install to your first successful cross-IDE context handoff.",
+};
+
+# Quickstart
+
+This guide walks through one full cycle: daemon running, two IDEs wired, checkpoint saved in one, resumed in the other. Allow 10 minutes on a fresh install.
+
+---
+
+## Step 1 — Start the daemon
+
+```bash
+ide-bridge start
+```
+
+Expected output:
+
+```
+ide-bridge listening on http://127.0.0.1:31415/mcp
+```
+
+If you already installed the service via `ide-bridge install-service`, it is already running. Verify with `ide-bridge status`.
+
+---
+
+## Step 2 — Initialize your project
+
+Navigate to your project directory and run:
+
+```bash
+cd /path/to/your-project
+ide-bridge init
+```
+
+This writes `.ide-bridge.yaml` in the project root:
+
+```yaml
+project_id: your-project
+# Commit this file so all IDEs and teammates resolve the same project_id.
+```
+
+The `project_id` is the single source of truth for checkpoint identity. Every IDE agent that opens a terminal in this directory will use the same bundle.
+
+To keep the file private (single-user workflow):
+
+```bash
+ide-bridge init --gitignore
+```
+
+---
+
+## Step 3 — Prime your source IDE (example: Cursor)
+
+Priming writes a markdown instruction file that the IDE agent reads on every session start. Without it, the agent does not know the bridge tools exist.
+
+```bash
+ide-bridge priming cursor
+# writes .cursor/rules/ide-bridge.mdc (alwaysApply: true)
+```
+
+For other IDEs:
+
+```bash
+ide-bridge priming claude-code   # appends to CLAUDE.md
+ide-bridge priming kiro          # writes .kiro/steering/ide-bridge.md
+ide-bridge priming antigravity   # prepends to AGENTS.md
+ide-bridge priming generic       # prepends to AGENTS.md
+```
+
+---
+
+## Step 4 — Configure the IDE&apos;s MCP server
+
+The priming file tells the agent *how* to use the bridge. The MCP config tells the IDE *where* the bridge is. Both steps are required.
+
+**Cursor** — edit (or create) the MCP config for your OS:
+
+| OS | Path |
+|---|---|
+| macOS | `~/Library/Application Support/Cursor/User/mcp.json` |
+| Linux | `~/.config/Cursor/User/mcp.json` |
+| Windows | `%APPDATA%\Cursor\User\mcp.json` |
+
+Add the entry:
+
+```json
+{
+  "mcpServers": {
+    "ide-bridge": {
+      "url": "http://127.0.0.1:31415/mcp"
+    }
+  }
+}
+```
+
+Fully quit and reopen Cursor. In Settings → MCP, `ide-bridge` should appear as connected (green indicator).
+
+**Claude Code** — one command does it:
+
+```bash
+claude mcp add ide-bridge http://127.0.0.1:31415/mcp --transport http
+```
+
+**Kiro / Antigravity** — use the IDE's MCP settings panel and point it at `http://127.0.0.1:31415/mcp`.
+
+---
+
+## Step 5 — Save the first checkpoint from Cursor
+
+Priming instructs the agent to save automatically, but to trigger a save explicitly on the first turn, send this prompt in Cursor chat:
+
+```
+Save the current context to the bridge now.
+Call bridge.save_checkpoint with source_ide "cursor" and include the current
+plan, open decisions, and any todos you know about.
+```
+
+The agent calls `bridge.save_checkpoint` and returns:
+
+```json
+{
+  "saved": true,
+  "bundle_id": "bnd_1",
+  "updated_at": "2026-04-17T10:23:45.000Z"
+}
+```
+
+Verify the checkpoint landed:
+
+```bash
+cat ~/.ide-bridge/projects/your-project/bundle.json | jq '{plan_steps,decisions,todos}'
+```
+
+---
+
+## Step 6 — Open the project in the destination IDE (example: Claude Code)
+
+Generate the priming file for Claude Code (if not done already):
+
+```bash
+ide-bridge priming claude-code
+```
+
+Open the same project directory in Claude Code and send:
+
+```
+Before we start, call bridge.load_checkpoint to get the project context.
+The project_id is in .ide-bridge.yaml — or pass it directly: "your-project".
+```
+
+Claude Code calls `bridge.load_checkpoint` and summarizes the bundle:
+
+```
+Loaded checkpoint for "your-project" (saved from cursor).
+Plan: [steps from the bundle]
+Open decisions: [decision list]
+Todos: [todo list]
+Git: branch main, 3 unstaged changes
+```
+
+From this point Claude Code has full context. Continue working — the priming file instructs it to save automatically before edits and on handoff.
+
+---
+
+## Step 7 — Verify the round-trip
+
+After Claude Code saves at least one checkpoint, confirm the round-trip by checking `last_source_ide`:
+
+```bash
+curl -s -X POST http://127.0.0.1:31415/mcp \
+  -H 'content-type: application/json' \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 3,
+    "method": "tools/call",
+    "params": {
+      "name": "load_checkpoint",
+      "arguments": { "project_id": "your-project" }
+    }
+  }' | jq '.result.bundle.last_source_ide'
+# "claude-code"
+```
+
+The field reflects the most recent saver — confirming the round-trip completed.
+
+---
+
+**Next:** [Configuration →](/docs/configuration)

@@ -17,3 +17,7 @@ CLAUDE.md
 .cursor/rules/_imported.mdc
 .ide-bridge.yaml
 AGENTS.md
+
+# Next.js build output for the docs website
+website/.next/
+website/out/

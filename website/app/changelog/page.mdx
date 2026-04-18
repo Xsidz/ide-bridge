@@ -1,0 +1,57 @@
+export const metadata = {
+  title: "Changelog — ide-bridge",
+  description:
+    "Release history for ide-bridge. All notable changes documented per Keep a Changelog conventions.",
+};
+
+import { Callout } from "../../components/Callout";
+
+# Changelog
+
+All notable changes to ide-bridge are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). For the full release list including source tarballs and release notes, see [github.com/Xsidz/ide-bridge/releases](https://github.com/Xsidz/ide-bridge/releases).
+
+---
+
+## [0.1.0-alpha.0] — 2026-04-17
+
+The first public alpha release. Establishes local context portability across Claude Code, Cursor, Kiro, Antigravity, and the generic MCP fallback.
+
+### Added
+
+- Local MCP daemon bound to `localhost:31415` speaking Streamable HTTP (2025-06-18 spec revision)
+- Six MCP tools: `save_checkpoint`, `load_checkpoint`, `append_decision`, `append_todo`, `list_projects`, `get_project_id`
+- Portable Context Bundle (PCB) v0.1 — Zod-validated JSON format with plan steps, decisions, TODOs, git state, rolling summary, and optional verbatim turns
+- Five IDE adapters: Claude Code (L3), Cursor (L2), Kiro (L1), Antigravity (L1), Generic (L0)
+- Three-tier project identity resolver: `.ide-bridge.yaml` > git remote + branch > path fingerprint
+- File-backed BundleStore with atomic writes (UUID-suffixed tmp files) and append-only history log
+- 30-second per-project save debounce, bypassable with `force: true`
+- CLI commands: `start`, `stop`, `status`, `init`, `hook save`, `install-service`, `priming <ide>`
+- `launchd` plist (macOS) and `systemd --user` unit (Linux) templates for autostart
+- Per-IDE priming file generator with `<!-- ide-bridge:priming -->` idempotency marker
+- `ide-bridge priming claude-code` auto-installs `SessionStart` + `PreCompact` hooks into `.claude/settings.json`
+- 104 tests (unit + integration + stress + security + e2e)
+
+### Security
+
+- Daemon binds `127.0.0.1` only — no remote network surface
+- Store permissions `0o700` (directories) / `0o600` (files)
+- `project_id` regex validation rejects path-traversal attempts
+- Prototype pollution defense: `__proto__`, `constructor`, and `prototype` keys filtered from metadata merges
+- Explicit Fastify `bodyLimit` of 10 MB
+
+---
+
+## [Unreleased]
+
+Changes on `main` not yet tagged. See the [compare view](https://github.com/Xsidz/ide-bridge/compare/v0.1.0-alpha.0...HEAD) for the diff since the last release.
+
+<Callout variant="info">
+  Future versions will be documented here as they are released. Watch the <a href="https://github.com/Xsidz/ide-bridge/releases">GitHub releases page</a> for notifications.
+</Callout>
+
+---
+
+<div style={{ display: "flex", justifyContent: "space-between", marginTop: "3rem", paddingTop: "1.5rem", borderTop: "1px solid rgba(15,0,0,0.12)" }}>
+  <a href="/docs/troubleshooting" style={{ color: "#007aff" }}>← Troubleshooting</a>
+  <a href="/contributing" style={{ color: "#007aff" }}>Contributing →</a>
+</div>

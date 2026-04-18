@@ -1,0 +1,409 @@
+export const metadata = {
+  title: "MCP tools — ide-bridge docs",
+  description:
+    "Full reference for all six ide-bridge MCP tools: signatures, argument tables, return tables, and JSON-RPC examples.",
+};
+
+# MCP tools
+
+ide-bridge exposes exactly six tools over MCP Streamable HTTP. All tools accept an optional `project_id` override. Without it, identity is auto-resolved from the calling IDE's working-directory hint.
+
+The endpoint for all calls is:
+
+```
+POST http://127.0.0.1:31415/mcp
+Content-Type: application/json
+```
+
+---
+
+## `save_checkpoint`
+
+Merge a PCB fragment into the active bundle for the resolved project. The operation is idempotent with a 30-second server-side debounce — rapid saves from the same IDE will be coalesced.
+
+**Signature**
+
+```ts
+save_checkpoint(args: {
+  project_id?: string;
+  source_ide: string;
+  bundle_patch: Record<string, unknown>;
+  force?: boolean;
+}): {
+  saved: boolean;
+  bundle_id?: string;
+  updated_at?: string;
+  reason?: string;
+}
+```
+
+**Arguments**
+
+| Argument | Type | Required | Description |
+|---|---|---|---|
+| `project_id` | `string` | No | Explicit project ID. Defaults to auto-resolved identity. |
+| `source_ide` | `string` | Yes | IDE identifier string: `"claude-code"`, `"cursor"`, `"kiro"`, `"antigravity"`, or `"generic"`. |
+| `bundle_patch` | `object` | Yes | PCB fragment to merge. Any subset of the PCB schema fields. |
+| `force` | `boolean` | No | Skip the 30s debounce and write immediately. |
+
+**Returns**
+
+| Field | Type | Description |
+|---|---|---|
+| `saved` | `boolean` | `true` if the bundle was written; `false` if debounced. |
+| `bundle_id` | `string` | Identifier of the written bundle entry (e.g. `"bnd_1"`). Present when `saved: true`. |
+| `updated_at` | `string` | ISO 8601 timestamp of the write. Present when `saved: true`. |
+| `reason` | `string` | Explanation when `saved: false` (e.g. `"debounced"`). |
+
+**Example**
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "tools/call",
+  "params": {
+    "name": "save_checkpoint",
+    "arguments": {
+      "source_ide": "cursor",
+      "bundle_patch": {
+        "plan_steps": ["Refactor auth module", "Add tests"],
+        "decisions": [{ "id": "d1", "text": "Use JWT", "rationale": "Stateless" }],
+        "todos": [{ "id": "t1", "text": "Write migration script", "status": "open" }]
+      }
+    }
+  }
+}
+```
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "saved": true,
+    "bundle_id": "bnd_1",
+    "updated_at": "2026-04-17T10:23:45.000Z"
+  }
+}
+```
+
+---
+
+## `load_checkpoint`
+
+Return the current Portable Context Bundle for the resolved project.
+
+**Signature**
+
+```ts
+load_checkpoint(args: {
+  project_id?: string;
+}): {
+  bundle: PCB;
+}
+```
+
+**Arguments**
+
+| Argument | Type | Required | Description |
+|---|---|---|---|
+| `project_id` | `string` | No | Explicit project ID. Defaults to auto-resolved identity. |
+
+**Returns**
+
+| Field | Type | Description |
+|---|---|---|
+| `bundle` | `PCB` | The full Portable Context Bundle object. Fields included depend on the calling adapter's `consume_fidelity`. |
+
+**Example**
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "method": "tools/call",
+  "params": {
+    "name": "load_checkpoint",
+    "arguments": { "project_id": "acme-billing" }
+  }
+}
+```
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "result": {
+    "bundle": {
+      "project_id": "acme-billing",
+      "last_source_ide": "cursor",
+      "updated_at": "2026-04-17T10:23:45.000Z",
+      "plan_steps": ["Refactor auth module", "Add tests"],
+      "decisions": [{ "id": "d1", "text": "Use JWT", "rationale": "Stateless" }],
+      "todos": [{ "id": "t1", "text": "Write migration script", "status": "open" }],
+      "git": { "remote": "origin", "branch": "main", "head": "abc1234" },
+      "conversation": { "summary": "Working on auth refactor..." }
+    }
+  }
+}
+```
+
+---
+
+## `append_decision`
+
+Append a single decision entry to the `decisions[]` array in the active bundle. Lighter-weight than a full `save_checkpoint` when you only want to record a discrete choice.
+
+**Signature**
+
+```ts
+append_decision(args: {
+  project_id?: string;
+  text: string;
+  rationale?: string;
+}): {
+  ok: boolean;
+  decision_id: string;
+}
+```
+
+**Arguments**
+
+| Argument | Type | Required | Description |
+|---|---|---|---|
+| `project_id` | `string` | No | Explicit project ID. |
+| `text` | `string` | Yes | The decision statement. |
+| `rationale` | `string` | No | Why this decision was made. Stored in `rationale` field of the entry. |
+
+**Returns**
+
+| Field | Type | Description |
+|---|---|---|
+| `ok` | `boolean` | `true` on success. |
+| `decision_id` | `string` | Auto-generated ID for the new entry (e.g. `"d2"`). |
+
+**Example**
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 3,
+  "method": "tools/call",
+  "params": {
+    "name": "append_decision",
+    "arguments": {
+      "text": "Reject bcrypt in favor of argon2id",
+      "rationale": "argon2id is the current OWASP recommendation and supports memory-hard hashing"
+    }
+  }
+}
+```
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 3,
+  "result": { "ok": true, "decision_id": "d2" }
+}
+```
+
+---
+
+## `append_todo`
+
+Append a single TODO entry to the `todos[]` array in the active bundle.
+
+**Signature**
+
+```ts
+append_todo(args: {
+  project_id?: string;
+  text: string;
+  status?: "open" | "in_progress" | "done";
+}): {
+  ok: boolean;
+  todo_id: string;
+}
+```
+
+**Arguments**
+
+| Argument | Type | Required | Description |
+|---|---|---|---|
+| `project_id` | `string` | No | Explicit project ID. |
+| `text` | `string` | Yes | The TODO item description. |
+| `status` | `"open" \| "in_progress" \| "done"` | No | Initial status. Defaults to `"open"`. |
+
+**Returns**
+
+| Field | Type | Description |
+|---|---|---|
+| `ok` | `boolean` | `true` on success. |
+| `todo_id` | `string` | Auto-generated ID for the new entry (e.g. `"t2"`). |
+
+**Example**
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 4,
+  "method": "tools/call",
+  "params": {
+    "name": "append_todo",
+    "arguments": {
+      "text": "Add argon2id dependency and update password hashing in auth.ts",
+      "status": "open"
+    }
+  }
+}
+```
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 4,
+  "result": { "ok": true, "todo_id": "t2" }
+}
+```
+
+---
+
+## `list_projects`
+
+List all projects known to this daemon instance. Returns a summary array — not full bundles.
+
+**Signature**
+
+```ts
+list_projects(args: {}): {
+  projects: Array<{
+    project_id: string;
+    last_source_ide: string;
+    updated_at: string;
+  }>;
+}
+```
+
+**Arguments**
+
+None.
+
+**Returns**
+
+| Field | Type | Description |
+|---|---|---|
+| `projects` | `array` | Each entry has `project_id`, `last_source_ide`, and `updated_at`. |
+
+**Example**
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 5,
+  "method": "tools/call",
+  "params": { "name": "list_projects", "arguments": {} }
+}
+```
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 5,
+  "result": {
+    "projects": [
+      {
+        "project_id": "acme-billing",
+        "last_source_ide": "cursor",
+        "updated_at": "2026-04-17T10:23:45.000Z"
+      },
+      {
+        "project_id": "side-project",
+        "last_source_ide": "claude-code",
+        "updated_at": "2026-04-16T18:00:00.000Z"
+      }
+    ]
+  }
+}
+```
+
+---
+
+## `get_project_id`
+
+Resolve project identity for a given directory. Useful for diagnostics when you need to verify which `project_id` will be used before making a save or load call.
+
+**Signature**
+
+```ts
+get_project_id(args: {
+  cwd: string;
+}): {
+  project_id: string;
+  resolved_from: "explicit" | "git" | "path";
+}
+```
+
+**Arguments**
+
+| Argument | Type | Required | Description |
+|---|---|---|---|
+| `cwd` | `string` | Yes | Absolute path to the directory to resolve. |
+
+**Returns**
+
+| Field | Type | Description |
+|---|---|---|
+| `project_id` | `string` | The resolved project identifier. |
+| `resolved_from` | `"explicit" \| "git" \| "path"` | Which resolution tier produced the ID. |
+
+**Example**
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 6,
+  "method": "tools/call",
+  "params": {
+    "name": "get_project_id",
+    "arguments": { "cwd": "/Users/alice/code/acme-billing" }
+  }
+}
+```
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 6,
+  "result": {
+    "project_id": "acme-billing",
+    "resolved_from": "explicit"
+  }
+}
+```
+
+---
+
+## JSON-RPC error codes
+
+When a tool call fails, the daemon returns a standard JSON-RPC error object:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "error": {
+    "code": -32602,
+    "message": "missing or empty required string arg: source_ide"
+  }
+}
+```
+
+| Code | Name | When it occurs |
+|---|---|---|
+| `-32601` | Method not found | The `method` field in the request does not match any registered handler. Usually a typo in the method name (e.g. `"tool/call"` instead of `"tools/call"`). |
+| `-32602` | Invalid params | A required argument is missing or has the wrong type. The `message` field names the specific argument. Common causes: omitting `source_ide` from `save_checkpoint`, or omitting `cwd` from `get_project_id`. |
+
+---
+
+**Next:** [Adapters →](/docs/adapters)

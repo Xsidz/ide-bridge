@@ -1,0 +1,253 @@
+export const metadata = {
+  title: "Adapters — ide-bridge docs",
+  description:
+    "Per-IDE integration guide for Claude Code, Cursor, Kiro, Antigravity, and the generic MCP fallback.",
+};
+
+import { Callout } from "../../../components/Callout";
+
+# Adapters
+
+ide-bridge ships five native adapters and a generic fallback that covers any MCP-capable IDE. Each adapter knows how to extract context from its IDE's native storage, import context into its IDE's native primer format, and which fidelity level it operates at.
+
+---
+
+## Claude Code
+
+**Fidelity cap: L3** — full session resume
+
+### Extract
+
+Claude Code stores conversation history as JSONL files under:
+
+```
+~/.claude/projects/<dash-encoded-cwd>/*.jsonl
+```
+
+The dash encoding transforms `/`, `.`, and `_` in the project path to `-`. For example, a project at `/Users/alice/work/acme_billing` becomes `~/.claude/projects/-Users-alice-work-acme-billing/`.
+
+The adapter reads these JSONL files and populates all PCB fields including the raw turn sequence for L3 session resume.
+
+### Import
+
+When loading into Claude Code the adapter synthesizes a forged JSONL checkpoint. Once the daemon writes that file, the session can be resumed with:
+
+```bash
+claude --resume <session-id>
+```
+
+The agent resumes with full turn history from the prior session — plan, decisions, todos, and verbatim conversation turns all intact.
+
+### Auto-install with priming
+
+Running `ide-bridge priming claude-code` does three things at once:
+
+1. Appends an `<!-- ide-bridge:priming -->` block to `CLAUDE.md` with tool-use instructions.
+2. Drops `.claude/settings.json` if it doesn't exist.
+3. Merges `SessionStart` and `PreCompact` hooks into `.claude/settings.json`.
+
+See [Hooks](/docs/hooks) for the exact hook behavior.
+
+<Callout type="info" title="idempotent">
+  Running <code>ide-bridge priming claude-code</code> multiple times is safe. The marker-keyed hooks are never duplicated and the CLAUDE.md block is written only once.
+</Callout>
+
+To opt out of hooks (priming file only, no hooks):
+
+```bash
+ide-bridge priming claude-code --no-hooks
+```
+
+### MCP config
+
+```bash
+claude mcp add ide-bridge http://127.0.0.1:31415/mcp --transport http
+```
+
+Or manually in `~/.claude.json`:
+
+```json
+{
+  "mcpServers": {
+    "ide-bridge": {
+      "url": "http://127.0.0.1:31415/mcp",
+      "type": "http"
+    }
+  }
+}
+```
+
+---
+
+## Cursor
+
+**Fidelity cap: L2** — last-N verbatim turns
+
+### Extract
+
+Cursor persists conversation state in a SQLite database. The adapter reads from:
+
+```
+<cursorStorageRoot>/workspaceStorage/<hash>/state.vscdb
+```
+
+Default storage root locations:
+
+| OS | Path |
+|---|---|
+| macOS | `~/Library/Application Support/Cursor/User/workspaceStorage/` |
+| Linux | `~/.config/Cursor/User/workspaceStorage/` |
+| Windows | `%APPDATA%\Cursor\User\workspaceStorage\` |
+
+The path can be overridden with the `IDE_BRIDGE_CURSOR_STORAGE` environment variable.
+
+### Import
+
+When loading context into Cursor the adapter writes a `.cursor/rules/_imported.mdc` file with `alwaysApply: true` frontmatter:
+
+```
+---
+alwaysApply: true
+---
+
+<!-- ide-bridge:imported -->
+... context content ...
+```
+
+This ensures Cursor injects the prior-session context into every agent call automatically — no manual attachment needed.
+
+### MCP config
+
+Edit or create the platform-specific config file:
+
+**macOS:** `~/Library/Application Support/Cursor/User/mcp.json`
+
+**Linux:** `~/.config/Cursor/User/mcp.json`
+
+**Windows:** `%APPDATA%\Cursor\User\mcp.json`
+
+```json
+{
+  "mcpServers": {
+    "ide-bridge": {
+      "url": "http://127.0.0.1:31415/mcp"
+    }
+  }
+}
+```
+
+Fully quit and reopen Cursor after editing. Verify the connection in Settings → MCP — the `ide-bridge` entry should show a green connected indicator.
+
+---
+
+## Kiro
+
+**Fidelity cap: L1** — rolling summary
+
+### Extract
+
+Kiro reads all files in its steering and specs directories. The adapter extracts context from:
+
+- `.kiro/steering/*` — persistent steering instructions
+- `.kiro/specs/*/requirements.md`, `design.md`, `tasks.md` — spec artefacts
+
+### Import
+
+The adapter writes a `.kiro/steering/_imported.md` file. Kiro reads all files in `.kiro/steering/` as persistent steering context on every session, so the imported context is automatically visible to the agent without any additional configuration.
+
+### MCP config
+
+Configure via the Kiro settings panel (Settings → MCP Servers), or create / edit `.kiro/mcp.json` in the project root:
+
+```json
+{
+  "mcpServers": {
+    "ide-bridge": {
+      "url": "http://127.0.0.1:31415/mcp"
+    }
+  }
+}
+```
+
+---
+
+## Antigravity
+
+**Fidelity cap: L1** — rolling summary
+
+### Extract
+
+Antigravity reads project context from `AGENTS.md` in the project root. The adapter extracts the current plan, decisions, and prior context from any bridge-block markers that were previously written.
+
+### Import
+
+The adapter writes into `AGENTS.md` using bridge-block markers so existing content is never clobbered:
+
+```markdown
+<!-- ide-bridge:start -->
+## Prior context from ide-bridge
+
+... injected context ...
+<!-- ide-bridge:end -->
+```
+
+Content outside the markers is preserved across every import. Re-running import updates the block in place.
+
+### MCP config
+
+Check your Antigravity version's settings UI for "MCP Servers" or "Tool servers". Point it at:
+
+```
+http://127.0.0.1:31415/mcp
+```
+
+---
+
+## Generic (any MCP-capable IDE)
+
+**Fidelity cap: L0** — plan, decisions, TODOs, git state only
+
+The generic adapter is the fallback for any MCP-capable IDE not explicitly listed above. It requires no IDE-specific knowledge: the agent drives saves manually by calling `bridge.save_checkpoint`, and the bridge injects context into `AGENTS.md`.
+
+### Extract
+
+There is no automatic extraction. Context is captured only when the agent explicitly calls `bridge.save_checkpoint`.
+
+### Import
+
+The adapter writes an `AGENTS.md` file (or appends to an existing one) with a "Prior context" block containing plan steps, decisions, TODOs, and git state.
+
+### MCP config
+
+Configure the IDE's MCP client to point at:
+
+```
+http://127.0.0.1:31415/mcp
+```
+
+The exact setting name varies by IDE. Look for "MCP servers", "tool servers", or "external tools" in the IDE's settings.
+
+---
+
+## Fidelity matrix
+
+| IDE | Produce | Consume | Transcript fidelity |
+|---|---|---|---|
+| Claude Code | L3 | L3 | Full session resume |
+| Cursor | L2 | L2 | Last-N turns |
+| Kiro | L1 | L1 | Rolling summary |
+| Antigravity | L1 | L1 | Rolling summary |
+| Generic | L0 | L0 | No transcript |
+
+The bridge automatically negotiates `min(produce_source, consume_target)`. A Claude Code → Kiro handoff downgrades to L1: the Kiro session receives a rolling summary and plan/decisions/todos, but not the verbatim turn sequence.
+
+<Callout variant="warning">
+  Verbatim conversation turns only transfer between IDEs whose fidelity caps overlap at L2 or above. Claude Code ↔ Cursor handoffs preserve last-N turns; any handoff involving Kiro, Antigravity, or Generic does not.
+</Callout>
+
+---
+
+<div style={{ display: "flex", justifyContent: "space-between", marginTop: "3rem", paddingTop: "1.5rem", borderTop: "1px solid rgba(15,0,0,0.12)" }}>
+  <a href="/docs/tools" style={{ color: "#007aff" }}>← MCP tools</a>
+  <a href="/docs/hooks" style={{ color: "#007aff" }}>Hooks →</a>
+</div>

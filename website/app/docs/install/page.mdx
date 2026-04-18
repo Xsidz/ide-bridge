@@ -1,0 +1,169 @@
+import { Callout } from "../../../components/Callout";
+
+export const metadata = {
+  title: "Install — ide-bridge docs",
+  description:
+    "How to install ide-bridge globally, start the daemon, run it as a service, verify the setup, and uninstall.",
+};
+
+# Install
+
+Get ide-bridge running on your machine in a few minutes.
+
+---
+
+## Prerequisites
+
+Before you start, make sure you have:
+
+- **Node 22 or later.** ide-bridge uses native fetch and async iterators that are not available in earlier runtimes.
+- **pnpm 10+ or npm 10+.** Either package manager works for the global install.
+- **A supported agentic IDE.** At least one of: [Claude Code](https://claude.ai/code), [Cursor](https://cursor.sh), [Kiro](https://kiro.dev), or Antigravity. Any other MCP-capable IDE also works via the generic fallback.
+
+<Callout type="danger" title="Node 20 will not work">
+  ide-bridge requires Node 22+. If you are on Node 20 you will see a runtime
+  error on startup. Run <code>node --version</code> to confirm your version,
+  then upgrade via <code>nvm install 22</code> or the{" "}
+  <a href="https://nodejs.org">nodejs.org</a> installer.
+</Callout>
+
+---
+
+## Install
+
+ide-bridge is distributed as a global CLI package. Choose your package manager:
+
+**npm**
+
+```bash
+npm install -g ide-bridge
+```
+
+**pnpm**
+
+```bash
+pnpm install -g ide-bridge
+```
+
+**yarn**
+
+```bash
+yarn global add ide-bridge
+```
+
+After install, confirm the binary is on your PATH:
+
+```bash
+ide-bridge --version
+```
+
+<Callout type="info" title="pnpm global bin not on PATH?">
+  If <code>ide-bridge</code> is not found after a pnpm global install, run{" "}
+  <code>pnpm setup</code> and then <code>source ~/.zshrc</code> (or your shell
+  rc file) to add pnpm&apos;s global bin directory to PATH.
+</Callout>
+
+---
+
+## Start the daemon
+
+Run the daemon in the foreground from any terminal:
+
+```bash
+ide-bridge start
+```
+
+Expected output:
+
+```
+ide-bridge listening on http://127.0.0.1:31415/mcp
+```
+
+The daemon binds exclusively to `127.0.0.1` (loopback only — zero network egress). It stays in the foreground. Press `Ctrl+C` to stop, or run `ide-bridge stop` from a second terminal.
+
+---
+
+## Run as a service (optional)
+
+To have ide-bridge start automatically when you log in, install it as a system service:
+
+```bash
+ide-bridge install-service
+```
+
+**macOS (launchd)** — writes a plist to `~/Library/LaunchAgents/com.ide-bridge.daemon.plist`. Load it immediately without rebooting:
+
+```bash
+launchctl load ~/Library/LaunchAgents/com.ide-bridge.daemon.plist
+```
+
+**Linux (systemd --user)** — writes a unit file to `~/.config/systemd/user/ide-bridge.service`. Enable and start:
+
+```bash
+systemctl --user enable --now ide-bridge.service
+```
+
+Once the service is running, launching `ide-bridge start` from a terminal will print "daemon already running" — that is expected behavior.
+
+---
+
+## Verify
+
+Check that the daemon is running and reachable:
+
+```bash
+ide-bridge status
+# running pid=12345 port=31415
+```
+
+Then send a `tools/list` request to confirm all six tools are registered:
+
+```bash
+curl -s -X POST http://127.0.0.1:31415/mcp \
+  -H 'content-type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | jq
+```
+
+You should see a response listing:
+`save_checkpoint`, `load_checkpoint`, `append_decision`, `append_todo`, `list_projects`, `get_project_id`.
+
+<Callout type="info" title="All six tools listed?">
+  You are ready to wire up an IDE. Head to the{" "}
+  <a href="/docs/quickstart">Quickstart</a> for the full end-to-end walkthrough.
+</Callout>
+
+---
+
+## Uninstall
+
+Remove the global binary:
+
+```bash
+# npm
+npm uninstall -g ide-bridge
+
+# pnpm
+pnpm remove -g ide-bridge
+```
+
+Remove all stored checkpoints, config, and daemon logs:
+
+```bash
+rm -rf ~/.ide-bridge
+```
+
+If you installed the system service, also remove it:
+
+```bash
+# macOS
+launchctl unload ~/Library/LaunchAgents/com.ide-bridge.daemon.plist
+rm ~/Library/LaunchAgents/com.ide-bridge.daemon.plist
+
+# Linux
+systemctl --user disable --now ide-bridge.service
+rm ~/.config/systemd/user/ide-bridge.service
+```
+
+---
+
+**Next:** [Quickstart →](/docs/quickstart)

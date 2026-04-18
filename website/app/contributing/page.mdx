@@ -1,0 +1,144 @@
+export const metadata = {
+  title: "Contributing — ide-bridge",
+  description:
+    "How to contribute to ide-bridge: development setup, PR workflow, scope guidance, security disclosure, and code of conduct.",
+};
+
+import { Callout } from "../../components/Callout";
+
+# Contributing
+
+Thanks for your interest in ide-bridge. Contributions of all kinds are welcome — bug fixes, new adapter support, test coverage, and documentation improvements.
+
+---
+
+## Before you start
+
+<Callout variant="warning" title="alpha software">
+  ide-bridge is v0.1 alpha. The PCB schema, MCP tool signatures, and on-disk storage layout are not yet stable. Breaking changes before v1.0 are expected and will be documented in the changelog. If you are building on top of ide-bridge, pin to a specific release tag.
+</Callout>
+
+Before opening a pull request for a new feature, open an issue first to check whether it fits the current scope. The v0.1 milestone is intentionally small — local-only, single user, five IDEs. Features that belong in v0.2 (remote sync, multi-user) or v1.0 (multi-IDE orchestration, managed SaaS) will be tracked and deferred rather than merged early.
+
+Bug reports and questions: [github.com/Xsidz/ide-bridge/issues](https://github.com/Xsidz/ide-bridge/issues)
+
+---
+
+## Development
+
+### Prerequisites
+
+- Node 22+
+- pnpm (pinned via `packageManager` field — use `corepack enable && corepack prepare pnpm@latest --activate`)
+
+### Setup
+
+```bash
+git clone https://github.com/Xsidz/ide-bridge
+cd ide-bridge
+pnpm install
+```
+
+### Commands
+
+```bash
+pnpm test         # run all tests (104 cases: unit + integration + e2e + security)
+pnpm typecheck    # strict TypeScript — noUncheckedIndexedAccess enabled
+pnpm build        # compile TypeScript to dist/
+pnpm dev          # run src/index.ts via tsx (no build step needed)
+```
+
+### Test layout
+
+```
+tests/
+  unit/           # per-module unit tests
+  integration/    # HTTP + CLI + E2E handoff tests
+  security/       # input validation and path-traversal tests
+  fixtures/       # sample JSONL sessions and bundles
+```
+
+Use `InMemoryStore` from `tests/helpers/` for tests that don't need a real filesystem — this keeps test runs fast and deterministic.
+
+---
+
+## PR workflow
+
+1. **Fork and branch.** Branch from `main` with a short descriptive name, e.g. `fix/cursor-storage-path` or `feat/windsurf-adapter`.
+2. **Write the test first.** The project follows TDD. A failing test that demonstrates the issue or new behaviour must come before the implementation.
+3. **Implement and verify locally.**
+   ```bash
+   pnpm test && pnpm typecheck && pnpm build
+   ```
+   All three must pass before pushing.
+4. **Conventional commits.** Use standard prefixes: `feat:`, `fix:`, `docs:`, `test:`, `refactor:`, `chore:`. Example: `fix(cursor): handle missing workspaceStorage path on Windows`.
+5. **Open a PR against `main`.** CI runs the same three checks. A red CI build blocks merge.
+6. **CODEOWNERS review.** The `CODEOWNERS` file requires at least one review from `@Xsidz`. Reviews focus on: (a) does it match the spec and intent, (b) is the code clean and consistent with the existing style.
+7. **Squash merge.** PRs are squash-merged into `main`. The PR title becomes the squash commit message — make it a good conventional commit line.
+
+---
+
+## Scope
+
+When in doubt, check the milestone labels on the issue tracker:
+
+| Label | Milestone | Description |
+|---|---|---|
+| `v0.1.x` | Patch / minor alpha | Bug fixes, resilience improvements, test coverage |
+| `v0.2` | Remote sync | `--remote` flag, Postgres bundle store, multi-machine |
+| `v1.0` | Orchestration | Multi-IDE roles, A2A, managed SaaS, new IDE adapters |
+
+Proposed features that aren't labelled yet are discussed in issues before any code is written.
+
+---
+
+## Security disclosure
+
+**Do not open a public GitHub issue for security vulnerabilities.**
+
+Email **siddhesh.kabraa@gmail.com** with the subject line `[ide-bridge security] <short summary>`. Include:
+
+- A description of the vulnerability
+- Steps to reproduce
+- Potential impact
+- Any suggested mitigations
+
+You should receive an acknowledgement within 3 business days. The coordinated disclosure window is 90 days — please give us time to ship a fix before public disclosure, unless the issue is being actively exploited.
+
+**In scope:**
+- The `ide-bridge` daemon and its MCP tool surface
+- The `ide-bridge` CLI
+- Dependency vulnerabilities that affect a default install
+
+**Out of scope:**
+- Issues in upstream IDEs (Claude Code, Cursor, Kiro, Antigravity)
+- Social engineering against maintainers
+- Denial-of-service requiring local admin privileges
+
+Full policy: [SECURITY.md on GitHub](https://github.com/Xsidz/ide-bridge/blob/main/SECURITY.md)
+
+---
+
+## Code of Conduct
+
+ide-bridge follows a contributor code of conduct adapted from the [Contributor Covenant v2.1](https://www.contributor-covenant.org/).
+
+**In short:** be respectful and constructive. Harassment, personal attacks, or demeaning behaviour toward any contributor is not tolerated.
+
+Examples of behaviour that contributes to a positive environment:
+
+- Demonstrating empathy and kindness toward others
+- Being respectful of differing opinions and experience levels
+- Giving and gracefully accepting constructive feedback
+- Focusing on what is best for the project and community
+
+To report a violation, email **siddhesh.kabraa@gmail.com**. All complaints will be reviewed and investigated promptly and fairly. Maintainers may remove contributions or restrict participation for violations.
+
+By contributing you agree your contributions are licensed under the MIT license.
+
+---
+
+<div style={{ display: "flex", justifyContent: "space-between", marginTop: "3rem", paddingTop: "1.5rem", borderTop: "1px solid rgba(15,0,0,0.12)" }}>
+  <a href="/changelog" style={{ color: "#007aff" }}>← Changelog</a>
+  <a href="/docs" style={{ color: "#007aff" }}>Docs →</a>
+</div>
