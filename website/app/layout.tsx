@@ -12,7 +12,10 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://ide-bridge.dev"),
+  metadataBase: new URL("https://www.ide-bridge.dev"),
+  alternates: {
+    canonical: "/",
+  },
   title: "ide-bridge — cross-IDE context bridge over MCP",
   description:
     "Save a structured checkpoint from one agentic IDE, resume it in another. Zero cloud, zero auth, localhost-only.",

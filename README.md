@@ -6,10 +6,13 @@ Cross-IDE context portability over MCP. Save a structured checkpoint from one ag
 [![Release](https://img.shields.io/badge/release-v0.1.0--alpha.0-orange.svg)](https://github.com/Xsidz/ide-bridge/releases/tag/v0.1.0-alpha.0)
 [![Node](https://img.shields.io/badge/node-%3E%3D22.0.0-brightgreen.svg)](https://nodejs.org)
 [![Tests](https://img.shields.io/badge/tests-61%20passing-brightgreen.svg)](tests/)
+[![Docs](https://img.shields.io/badge/docs-ide--bridge.dev-007aff.svg)](https://www.ide-bridge.dev)
 
 > **ide-bridge** runs a local MCP daemon that stores a Portable Context Bundle (PCB) per project — your plan, decisions, TODOs, git state, and conversation summary — and exposes six MCP tools. Any supported IDE can save to or load from the bundle. When you switch IDEs, the next agent turn starts already knowing what you were doing and why.
 
 ---
+
+**Full documentation is at [ide-bridge.dev](https://www.ide-bridge.dev).** The rest of this README is a fast overview.
 
 ## The problem
 
