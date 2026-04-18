@@ -42,7 +42,7 @@ export default function RootLayout({
     <html lang="en" className={plexMono.variable}>
       <body className="min-h-dvh flex flex-col">
         <Nav />
-        <main className="flex-1">{children}</main>
+        <main className="flex flex-col flex-1">{children}</main>
         <Footer />
       </body>
     </html>
