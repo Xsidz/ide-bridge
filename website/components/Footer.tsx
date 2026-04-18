@@ -4,7 +4,7 @@ const COLUMNS = [
   {
     heading: "ide-bridge",
     tagline: "Cross-IDE context portability over MCP.",
-    links: [],
+    links: [{ label: "ide-bridge.dev", href: "https://www.ide-bridge.dev" }],
   },
   {
     heading: "Product",
